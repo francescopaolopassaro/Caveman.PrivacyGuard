@@ -216,8 +216,8 @@ Distribuito sotto licenza MIT. Vedi LICENSE per dettagli.
 
 | **Versione** | **Feature**                          | **Stato**      |
 |--------------|--------------------------------------|----------------|
-| **1.0**      | 27 paesi UE, masking, YAML embedded  | ✅ Release      |
-| **1.1**      | Configurazione JSON + hot-reloadog   | 🔄 In sviluppo |
+| **1.2**      | 27 paesi UE, masking, YAML embedded  | ✅ Release      |
+| **1.3**      | Configurazione JSON + hot-reloadog   | 🔄 In sviluppo |
 
 
 # 🛡️ Proteggi i dati, abilita l'AI. Compliance by design.
