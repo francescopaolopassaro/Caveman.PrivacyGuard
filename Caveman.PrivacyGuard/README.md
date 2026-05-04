@@ -1,6 +1,8 @@
-﻿# Caveman.PrivacyGuard# <img width="1276" height="816" alt="Gemini_Generated_Image_tnxoi9tnxoi9tnxo" src="https://github.com/user-attachments/assets/5a8e3193-b7d3-4a41-90e6-e672467ce6cb" />
+﻿# Caveman.PrivacyGuard 🛡️🇪🇺
 
-# Caveman.PrivacyGuard 🛡️🇪🇺
+<img width="638" height="408" alt="Gemini_Generated_Image_tnxoi9tnxoi9tnxo" src="https://github.com/user-attachments/assets/5a8e3193-b7d3-4a41-90e6-e672467ce6cb" />
+
+
 
 [![NuGet](https://img.shields.io/nuget/v/Caveman.PrivacyGuard.svg)](https://www.nuget.org/packages/Caveman.PrivacyGuard)
 [![Downloads](https://img.shields.io/nuget/dt/Caveman.PrivacyGuard.svg)](https://www.nuget.org/packages/Caveman.PrivacyGuard)
