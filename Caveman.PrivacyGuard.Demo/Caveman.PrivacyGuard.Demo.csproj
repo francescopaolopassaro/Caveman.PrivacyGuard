@@ -1,0 +1,15 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <OutputType>Exe</OutputType>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Caveman.PrivacyGuard\Caveman.PrivacyGuard.csproj" />
+  </ItemGroup>
+  <PropertyGroup>
+  <ApplicationManifest>app.manifest</ApplicationManifest>
+</PropertyGroup>
+</Project>

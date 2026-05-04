@@ -1,0 +1,38 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+    <PackageId>Caveman.PrivacyGuard</PackageId>
+    <Version>1.0.2</Version>
+    <Authors>Francesco Paolo Passaro</Authors>
+    <Description>Enterprise-grade PII &amp; Privacy Analyzer for AI/LLM workflows. Detects, scores, and auto-masks sensitive data across 27 EU countries with GDPR/PCI-DSS/NIST compliance flags, multi-language support, and YAML-driven extensible rules.</Description>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+	<PackageProjectUrl>https://github.com/francescopaolopassaro/Caveman.PrivacyGuard</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/francescopaolopassaro/Caveman.PrivacyGuard</RepositoryUrl>
+    <PackageTags>privacy,gdpr,pii,ai,llm,security,masking,eu,compliance</PackageTags>
+    <Title>Caveman.PrivacyGuard</Title>
+    <Copyright>Copyright (c) 2026 Passaro Francesco Paolo</Copyright>
+    <RepositoryType>git</RepositoryType>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Remove="Caveman.PrivacyGuard.Tests\**" />
+    <EmbeddedResource Remove="Caveman.PrivacyGuard.Tests\**" />
+    <None Remove="Caveman.PrivacyGuard.Tests\**" />
+  </ItemGroup>
+<ItemGroup>
+  <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleToAttribute">
+    <_Parameter1>Caveman.PrivacyGuard.Tests</_Parameter1>
+  </AssemblyAttribute>
+</ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="YamlDotNet" Version="15.1.6" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="rules.yaml" />
+    <None Include="README.md" Pack="true" PackagePath="\" />
+  </ItemGroup>
+</Project>
