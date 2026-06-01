@@ -1,11 +1,12 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <TargetFramework>net8.0</TargetFramework>
+    <TargetFrameworks>net8.0;netstandard2.0</TargetFrameworks>
+    <LangVersion>12</LangVersion>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
     <PackageId>Caveman.PrivacyGuard</PackageId>
-    <Version>1.0.2</Version>
+    <Version>1.2.0</Version>
     <Authors>Francesco Paolo Passaro</Authors>
     <Description>Enterprise-grade PII &amp; Privacy Analyzer for AI/LLM workflows. Detects, scores, and auto-masks sensitive data across 27 EU countries with GDPR/PCI-DSS/NIST compliance flags, multi-language support, and YAML-driven extensible rules.</Description>
     <PackageReadmeFile>README.md</PackageReadmeFile>
@@ -17,6 +18,19 @@
     <Copyright>Copyright (c) 2026 Passaro Francesco Paolo</Copyright>
     <RepositoryType>git</RepositoryType>
   </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="YamlDotNet" Version="15.1.6" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="8.0.2" />
+    <PackageReference Include="System.Text.Json" Version="8.0.5" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(TargetFramework)' == 'netstandard2.0'">
+    <PackageReference Include="System.Threading.Tasks.Extensions" Version="4.5.4" />
+    <PackageReference Include="System.IO.FileSystem.Watcher" Version="4.3.0" />
+    <PackageReference Include="Microsoft.Bcl.AsyncInterfaces" Version="8.0.0" />
+  </ItemGroup>
+
   <ItemGroup>
     <Compile Remove="Caveman.PrivacyGuard.Tests\**" />
     <EmbeddedResource Remove="Caveman.PrivacyGuard.Tests\**" />
@@ -28,11 +42,8 @@
   </AssemblyAttribute>
 </ItemGroup>
   <ItemGroup>
-    <PackageReference Include="YamlDotNet" Version="15.1.6" />
-  </ItemGroup>
-
-  <ItemGroup>
     <EmbeddedResource Include="rules.yaml" />
     <None Include="README.md" Pack="true" PackagePath="\" />
+    <None Include="CHANGELOG.md" Pack="true" PackagePath="\" />
   </ItemGroup>
 </Project>

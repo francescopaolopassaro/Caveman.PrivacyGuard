@@ -31,6 +31,25 @@ internal static class RuleLoader
         using var stream = assembly.GetManifestResourceStream(resourceName);
         if (stream == null)
             throw new InvalidOperationException($"Embedded resource '{resourceName}' not found.");
+        return Deserialize(stream);
+    }
+
+    public static RulesDocument LoadFromFile(string filePath)
+    {
+        if (!File.Exists(filePath))
+            throw new FileNotFoundException("Rules YAML file not found.", filePath);
+        using var stream = File.OpenRead(filePath);
+        return Deserialize(stream);
+    }
+
+    public static RulesDocument LoadFromString(string yamlContent)
+    {
+        var deserializer = new DeserializerBuilder().Build();
+        return deserializer.Deserialize<RulesDocument>(yamlContent);
+    }
+
+    private static RulesDocument Deserialize(Stream stream)
+    {
         var deserializer = new DeserializerBuilder().Build();
         return deserializer.Deserialize<RulesDocument>(new StreamReader(stream));
     }

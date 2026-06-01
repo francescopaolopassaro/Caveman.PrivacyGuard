@@ -39,6 +39,7 @@ namespace Caveman.PrivacyGuard.Demo;
 internal static class Program
 {
     private static readonly PrivacyAnalyzer _analyzer = new() { EnableAutoMasking = true };
+    private static PrivacySession? _session;
     private static bool _running = true;
 
     private static void Main()
@@ -61,11 +62,148 @@ internal static class Program
             }
 
             Console.WriteLine();
+
+            if (input.Trim().Equals("/reset", StringComparison.OrdinalIgnoreCase))
+            {
+                ResetSession();
+                Console.ForegroundColor = ConsoleColor.Green;
+                Console.WriteLine("🔄 Session reset. New placeholder session started.");
+                Console.ResetColor();
+                ShowDivider();
+                continue;
+            }
+
+            if (input.Trim().Equals("/status", StringComparison.OrdinalIgnoreCase))
+            {
+                ShowSessionStatus();
+                ShowDivider();
+                continue;
+            }
+
+            if (input.Trim().Equals("/whitelist", StringComparison.OrdinalIgnoreCase))
+            {
+                ShowWhitelist();
+                ShowDivider();
+                continue;
+            }
+
+            if (input.Trim().Equals("/rules", StringComparison.OrdinalIgnoreCase))
+            {
+                ShowRules();
+                ShowDivider();
+                continue;
+            }
+
+            if (input.Trim().Equals("/export", StringComparison.OrdinalIgnoreCase))
+            {
+                ExportSession();
+                ShowDivider();
+                continue;
+            }
+
+            if (input.Trim().Equals("/validate", StringComparison.OrdinalIgnoreCase))
+            {
+                ShowValidation();
+                ShowDivider();
+                continue;
+            }
+
             AnalyzeAndDisplay(input);
             ShowDivider();
         }
 
         ShowFooter();
+    }
+
+    private static void ResetSession()
+    {
+        _session = new PrivacySession();
+    }
+
+    private static void ShowSessionStatus()
+    {
+        if (_session == null)
+        {
+            Console.ForegroundColor = ConsoleColor.Yellow;
+            Console.WriteLine("📭 No active session. Type a message to create one.");
+            Console.ResetColor();
+            return;
+        }
+
+        var entries = _session.GetAll();
+        Console.ForegroundColor = ConsoleColor.Cyan;
+        Console.WriteLine($"📊 Session Status: {entries.Count} placeholder(s) active");
+        Console.ResetColor();
+
+        if (entries.Count > 0)
+        {
+            Console.ForegroundColor = ConsoleColor.DarkGray;
+            foreach (var entry in entries.OrderBy(e => e.Key))
+                Console.WriteLine($"   {entry.Key} → {entry.Value.OriginalValue}  ({entry.Value.Category})");
+            Console.ResetColor();
+        }
+    }
+
+    private static void ShowWhitelist()
+    {
+        var list = _analyzer.GetWhitelist();
+        Console.ForegroundColor = ConsoleColor.Cyan;
+        Console.WriteLine($"📋 Whitelist: {list.Count} value(s)");
+        Console.ResetColor();
+
+        if (list.Count > 0)
+        {
+            Console.ForegroundColor = ConsoleColor.DarkGray;
+            foreach (var v in list)
+                Console.WriteLine($"   ⚪ {v}");
+            Console.ResetColor();
+        }
+    }
+
+    private static void ShowRules()
+    {
+        var categories = _analyzer.GetLoadedCategories();
+        Console.ForegroundColor = ConsoleColor.Cyan;
+        Console.WriteLine($"📜 Loaded Rules: {categories.Count} categories");
+        Console.ResetColor();
+
+        Console.ForegroundColor = ConsoleColor.DarkGray;
+        foreach (var cat in categories.Take(20))
+        {
+            var rule = _analyzer.GetRule(cat);
+            if (rule != null)
+                Console.WriteLine($"   • {cat}  (weight: {rule.BaseWeight}, confidence: {(rule.IsHighConfidence ? "high" : "normal")})");
+        }
+        if (categories.Count > 20)
+            Console.WriteLine($"   ... and {categories.Count - 20} more");
+        Console.ResetColor();
+    }
+
+    private static void ExportSession()
+    {
+        if (_session == null || _session.Count == 0)
+        {
+            Console.ForegroundColor = ConsoleColor.Yellow;
+            Console.WriteLine("📭 No active session to export.");
+            Console.ResetColor();
+            return;
+        }
+
+        var json = _session.ToJson();
+        Console.ForegroundColor = ConsoleColor.Cyan;
+        Console.WriteLine($"📦 Session exported ({_session.Count} entries):");
+        Console.ResetColor();
+        Console.ForegroundColor = ConsoleColor.DarkGray;
+        Console.WriteLine(json);
+        Console.ResetColor();
+    }
+
+    private static void ShowValidation()
+    {
+        var valid = _analyzer.ValidateRules();
+        Console.ForegroundColor = valid ? ConsoleColor.Green : ConsoleColor.Red;
+        Console.WriteLine(valid ? "✅ All rules valid." : "❌ Some rules are invalid.");
+        Console.ResetColor();
     }
 
     private static void SetupConsole()
@@ -85,7 +223,7 @@ internal static class Program
         Console.ForegroundColor = ConsoleColor.Cyan;
         Console.WriteLine(@"
   ╔══════════════════════════════════════════════════════════╗
-  ║  🛡️  CAVEMAN.PRIVACYGUARD v1.0                          ║
+  ║  🛡️  CAVEMAN.PRIVACYGUARD v1.2                          ║
   ║  Enterprise EU PII & Privacy Analyzer for AI/LLM         ║
   ║  GDPR • PCI-DSS • NIST • 27 Countries • Multi-Language   ║
   ╚══════════════════════════════════════════════════════════╝
@@ -104,6 +242,12 @@ internal static class Program
         Console.ForegroundColor = ConsoleColor.Green;
         Console.WriteLine("\n✨ Ready to analyze your text for privacy risks.");
         Console.WriteLine("🔹 Type any message to check for PII, credentials, or sensitive data.");
+        Console.WriteLine("🔹 Type '/reset' to start a new placeholder session.");
+        Console.WriteLine("🔹 Type '/status' to show current session state.");
+        Console.WriteLine("🔹 Type '/whitelist' to show whitelisted values.");
+        Console.WriteLine("🔹 Type '/rules' to show loaded rule categories.");
+        Console.WriteLine("🔹 Type '/export' to export session as JSON.");
+        Console.WriteLine("🔹 Type '/validate' to validate all loaded rules.");
         Console.WriteLine("🔹 Press ESC anytime to exit.");
         Console.WriteLine("🔹 Type 'exit' or 'quit' to close gracefully.");
         Console.ResetColor();
@@ -146,9 +290,19 @@ internal static class Program
         }
     }
 
-    private static void AnalyzeAndDisplay(string input)
+    private static void AnalyzeAndDisplay(string input, bool useSession = true)
     {
-        var result = _analyzer.Analyze(input, "en");
+        PrivacyAnalysisResult result;
+
+        if (useSession)
+        {
+            _session ??= new PrivacySession();
+            result = _analyzer.Analyze(input, "en", _session);
+        }
+        else
+        {
+            result = _analyzer.Analyze(input, "en");
+        }
 
         // 🎨 Risk Level Color Coding
         var (fg, bg, symbol) = GetRiskColors(result.Score);
@@ -197,6 +351,30 @@ internal static class Program
             Console.ForegroundColor = ConsoleColor.Gray;
             Console.WriteLine($"   {result.MaskedText}");
             Console.ResetColor();
+
+            // 🔄 Show session placeholder mapping
+            if (result.Session != null)
+            {
+                var allEntries = result.Session.GetAll();
+                if (allEntries.Count > 0)
+                {
+                    Console.ForegroundColor = ConsoleColor.DarkYellow;
+                    Console.WriteLine("\n📋 Session Placeholder Map:");
+                    Console.ResetColor();
+                    foreach (var entry in allEntries)
+                    {
+                        Console.WriteLine($"   {entry.Key} → {entry.Value.OriginalValue}  ({entry.Value.Category})");
+                    }
+
+                    // 🪄 Simulate AI response restore
+                    var keys = string.Join(" and ", allEntries.Keys);
+                    var simulatedAIResponse = $"I found the following information: {keys}";
+                    var restored = result.Session.Restore(simulatedAIResponse);
+                    Console.ForegroundColor = ConsoleColor.Green;
+                    Console.WriteLine($"\n🪄 AI response restored: {restored}");
+                    Console.ResetColor();
+                }
+            }
         }
 
         // 💬 Warning Message

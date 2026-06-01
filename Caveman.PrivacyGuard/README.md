@@ -8,6 +8,7 @@
 [![Downloads](https://img.shields.io/nuget/dt/Caveman.PrivacyGuard.svg)](https://www.nuget.org/packages/Caveman.PrivacyGuard)
 [![License](https://img.shields.io/github/license/caveman/privacyguard.svg)](LICENSE)
 [![.NET 8](https://img.shields.io/badge/.NET-8.0-blueviolet)](https://dotnet.microsoft.com)
+[![.NET Standard 2.0](https://img.shields.io/badge/.NET_Standard-2.0-purple)](https://docs.microsoft.com/en-us/dotnet/standard/net-standard)
 [![GDPR Ready](https://img.shields.io/badge/GDPR-Compliant-green)](https://gdpr.eu)
 
 > **Enterprise-grade PII & Privacy Analyzer for AI/LLM workflows**  
@@ -26,7 +27,20 @@
 | ⚙️ **YAML-Driven** | Regole configurabili in `rules.yaml` embedded, estendibili a runtime |
 | 🔐 **Compliance Flags** | Mappatura automatica a GDPR, PCI-DSS, NIST 800-53, autorità nazionali (CNIL, BfDI, AEPD, ecc.) |
 | 🧵 **Thread-Safe** | Pronto per microservizi ad alto throughput con `ReaderWriterLockSlim` e regex cache |
-| 🚀 **Performance** | `RegexOptions.NonBacktracking` (.NET 8), pre-compilazione, zero allocazioni ridondanti |
+| 🔄 **Session Restore** | Placeholder univoci `[PG_N]` per occorrenza, ripristino lato client dei dati originali nelle risposte AI, zero dati sensibili inviati al LLM |
+| ✂️ **Dynamic Rules** | Carica/scarica/ispeziona regole a runtime: `LoadCustomYaml`, `RemoveRule()`, `GetRule()`, `GetLoadedCategories()` |
+| 🧹 **Whitelist Lifecycle** | `AddToWhitelist`, `RemoveFromWhitelist`, `ClearWhitelist`, `GetWhitelist`, `IsWhitelisted` |
+| 🔌 **Extensible Validators** | Registra, rimuovi o resetta validatori personalizzati con `ValidatorRegistry.Register` / `Unregister` / `Reset` |
+| ⚡ **Async API** | `AnalyzeAsync` con 4 overload + `CancellationToken` per UI/web |
+| 🔌 **JSON Config** | `LoadCustomJson` / `LoadCustomJsonFromString` con hot-reload (`WatchConfig` / `ConfigReloaded`) |
+| 💾 **Session Export** | `ToJson` / `FromJson` / `ImportFromJson` per persistenza placeholder |
+| 🔍 **IReadOnlySession** | Interfaccia read-only per API pubbliche che non devono mutare la sessione |
+| ✅ **ValidateRules** | Metodo pubblico per validare tutte le regole caricate |
+| 🛡️ **Safe Dispose** | `ThrowIfDisposed()` su tutti i metodi pubblici, `catch(SynchronizationLockException)` graceful |
+| 🪵 **ILogger** | Integrazione con `Microsoft.Extensions.Logging.Abstractions` per diagnostic |
+| 📋 **CHANGELOG** | Tracciamento versioni incluso nel pacchetto NuGet |
+| 🌐 **.NET Standard 2.0** | Compatibile con framework .NET legacy |
+| 🚀 **Performance** | `RegexOptions.NonBacktracking` (.NET 8), pre-compilazione, cache O(1), zero allocazioni ridondanti, timeout 3s anti-ReDoS |
 
 ---
 
@@ -77,6 +91,77 @@ Output:
 Cliente: Mario Rossi, email [EMAIL], IBAN: [IBAN]
 ```
 
+## 🪄 Session Restore — Zero Sensitive Data to the LLM
+
+Il vero punto di forza: i dati sensibili **non lasciano mai il client**. Il flusso è:
+
+1. **Mask** — `PrivacyAnalyzer` rileva e sostituisce con placeholder univoci `[PG_1]`, `[PG_2]`, ecc.
+2. **Send** — Il testo mascherato (privo di dati reali) viene inviato al LLM
+3. **Restore** — La risposta del LLM viene processata da `PrivacySession.Restore()` che ripristina i valori originali **lato client**
+
+```csharp
+var session = new PrivacySession();
+var analyzer = new PrivacyAnalyzer { EnableAutoMasking = true };
+
+// 1. Analizza e maschera (i dati restano solo nella session)
+var result = analyzer.Analyze(
+    "Mario Rossi, email mario@azienda.it, IBAN: IT60X0542811101000000123456",
+    "en", session);
+
+Console.WriteLine(result.MaskedText);
+// Output: Mario Rossi, email [PG_1], IBAN: [PG_2]
+
+// 2. Invia result.MaskedText al LLM...
+var aiResponse = "Contatta il cliente via [PG_1] per l'addebito su [PG_2]";
+
+// 3. Ripristina lato client (nessun dato sensibile è mai uscito)
+var safeResponse = session.Restore(aiResponse);
+Console.WriteLine(safeResponse);
+// Output: Contatta il cliente via mario@azienda.it per l'addebito su IT60X0542811101000000123456
+```
+
+### API Reference
+
+```csharp
+// Crea una nuova sessione
+var session = new PrivacySession();
+
+// Analizza con sessione (placeholder univoci [PG_N])
+var result = analyzer.Analyze(input, "en", session);
+
+// Oppure via proprietà CurrentSession
+analyzer.CurrentSession = new PrivacySession();
+var result = analyzer.Analyze(input);
+
+// Ripristina una risposta AI
+string restored = session.Restore(aiResponseText);
+
+// Ispeziona i placeholder generati
+foreach (var entry in session.GetAll())
+    Console.WriteLine($"{entry.Key} → {entry.Value.OriginalValue} ({entry.Value.Category})");
+
+// Ottieni un singolo mapping
+var entry = session.GetEntry("[PG_1]");
+
+// Aggiungi manualmente un placeholder (pubblico)
+session.AddOrGet("Email", "manual@test.com");
+
+// Unisci un'altra sessione (ignora duplicati per valore)
+session.MergeFrom(anotherSession);
+
+// Resetta la sessione
+session.Clear();
+
+// Metodo statico su PrivacyAnalyzer
+string restored = PrivacyAnalyzer.RestoreText(aiResponse, session);
+
+// Metodo di istanza (usa CurrentSession)
+analyzer.CurrentSession = session;
+string restored2 = analyzer.RestoreText(aiResponse);
+```
+
+> **Nota:** Senza sessione (`Analyze(input)` o `Analyze(input, lang)`), il masking usa i placeholder testuali `[EMAIL]`, `[IBAN]`, ecc. come in precedenza.
+
 | **Codice**  | **Paese**   | **Identificatori Principali** | **Autorità di Riferimento**      |
 |-------------|-------------|-------------------------------|----------------------------------|
 | **🇮🇹 IT** | Italia      | Codice Fiscale, Partita IVA   | Garante Privacy, Agenzia Entrate |
@@ -110,7 +195,7 @@ Cliente: Mario Rossi, email [EMAIL], IBAN: [IBAN]
 
 ## ⚙️ Configurazione Avanzata
 
-Whitelist (Esclusioni Sicure)
+### Whitelist (Esclusioni Sicure)
 
 ```csharp
 analyzer.AddToWhitelist(
@@ -118,33 +203,205 @@ analyzer.AddToWhitelist(
     "127.0.0.1",            // IP localhost
     "IT00000000000"         // PIVA dummy
 );
+
+// Rimozione e reset
+analyzer.RemoveFromWhitelist("test@company.eu");
+analyzer.ClearWhitelist();  // rimuove tutte le esclusioni
+
+// Ispezione
+var all = analyzer.GetWhitelist();     // IReadOnlySet<string>
+if (analyzer.IsWhitelisted("127.0.0.1"))
+    Console.WriteLine("IP nella whitelist");
 ```
 
-# Validatori Personalizzati a Runtime
+### Validatori Personalizzati
 
 ```csharp
 // Registra un nuovo validatore per un formato nazionale custom
 ValidatorRegistry.Register("MY_CUSTOM_ID", value => 
     value.Length == 10 && value.StartsWith("XYZ") && value.All(char.IsDigit));
 
-// Poi usalo nel tuo YAML custom:
-// validator_name: "MY_CUSTOM_ID"
-```
-# 📐 Caricamento YAML Esterno (Opzionale)
+// Rimuove un validatore esistente
+ValidatorRegistry.Unregister("MY_CUSTOM_ID");
 
-```csharp
-// Per caricare regole aggiornate senza ricompilare la libreria
-// (implementazione da aggiungere su richiesta)
-// analyzer.LoadCustomYaml("path/to/custom-rules.yaml");
+// Resetta tutti i validatori ai built-in (rimuove i custom)
+ValidatorRegistry.Reset();
 ```
 
-# 📐 Architettura del Punteggio
+### Ispezione e Gestione Regole a Runtime
 
 ```csharp
-Score Finale = 
-  (BaseScore × CorrelationMultiplier) + 
-  (ContextBoost × 12) + 
-  (DensityBonus × 18)
+// Elenca tutte le categorie di regole attualmente caricate
+var categories = analyzer.GetLoadedCategories();
+
+// Ispeziona una regola specifica (regex, peso, validatore, ecc.)
+var emailRule = analyzer.GetRule("Email");
+Console.WriteLine(emailRule.Pattern);   // regex compilata
+Console.WriteLine(emailRule.BaseWeight); // peso
+
+// Rimuove tutte le regole di una categoria
+analyzer.RemoveRule("Email");
+
+// Pulisce TUTTE le regole (embedded + custom)
+analyzer.ClearRules();
+```
+
+### Rilascio Risorse
+
+`PrivacyAnalyzer` implementa `IDisposable` per rilasciare il `ReaderWriterLockSlim`. Tutti i metodi pubblici lanciano `ObjectDisposedException` se chiamati dopo lo smaltimento:
+
+```csharp
+using var analyzer = new PrivacyAnalyzer { EnableAutoMasking = true };
+var result = analyzer.Analyze("test@example.com");
+// analyzer.Dispose() chiamato automaticamente all'uscita del using
+```
+
+### Analisi Asincrona
+
+Per applicazioni UI o web, `AnalyzeAsync` esegue l'analisi su un thread pool e supporta `CancellationToken`:
+
+```csharp
+using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+
+try
+{
+    var result = await analyzer.AnalyzeAsync(
+        "Email: test@example.com, IBAN: IT60X0542811101000000123456",
+        cts.Token);
+
+    Console.WriteLine($"Score: {result.Score}");
+}
+catch (OperationCanceledException)
+{
+    Console.WriteLine("Analisi cancellata per timeout.");
+}
+```
+
+Overload disponibili: `AnalyzeAsync(input)`, `AnalyzeAsync(input, session, ct)`, `AnalyzeAsync(input, language, ct)`, `AnalyzeAsync(input, language, session, ct)`.
+
+### YAML Esterno e Dinamico
+
+```csharp
+// Carica regole da file (si aggiungono a quelle embedded)
+analyzer.LoadCustomYaml("path/to/custom-rules.yaml");
+
+// Carica regole da stringa YAML (utile per DB/config remota)
+var yaml = @"
+version: ""2.0""
+countries:
+  - code: ""XX""
+    rules:
+      - category: ""CustomPII""
+        pattern: '\bSENSITIVE_\w+\b'
+        base_weight: 20
+        compliance_tags: [""GDPR Art.4(1)""]";
+analyzer.LoadCustomYamlFromString(yaml);
+```
+
+### Compliance Tags da YAML
+
+I flag di compliance (`compliance_tags` nel YAML) vengono automaticamente raccolti e uniti a quelli hardcodati. Puoi aggiungere tag personalizzati per ogni regola:
+
+```yaml
+- category: "MyCustomID"
+  pattern: '\bMY_\d{6}\b'
+  base_weight: 15
+  compliance_tags: ["GDPR Art.4(1)", "Internal Policy #42"]
+```
+
+### JSON Config e Hot-Reload
+
+Oltre a YAML, supportiamo configurazione JSON con hot-reload automatico:
+
+```csharp
+// Carica regole da file JSON
+analyzer.LoadCustomJson("path/to/custom-rules.json");
+
+// Carica da stringa
+var json = @"{
+  ""version"": ""2.0"",
+  ""countries"": [
+    { ""code"": ""XX"", ""rules"": [
+      { ""category"": ""CustomPII"", ""pattern"": ""\\bSENSITIVE_\\w+\\b"", ""base_weight"": 20 }
+    ]}
+  ]
+}";
+analyzer.LoadCustomJsonFromString(json);
+
+// Hot-reload: osserva il file e ricarica automaticamente
+analyzer.WatchConfig("path/to/custom-rules.json");
+
+// Evento notificato dopo ogni ricarica
+analyzer.ConfigReloaded += (s, e) => Console.WriteLine("⚡ Config ricaricata!");
+
+// Ferma il watcher
+analyzer.StopWatching();
+```
+
+### Validazione Regole
+
+Verifica che tutte le regole caricate siano valide (nessuna eccezione in fase di match):
+
+```csharp
+if (analyzer.ValidateRules())
+    Console.WriteLine("✅ Tutte le regole sono valide");
+else
+    Console.WriteLine("❌ Regole invalide trovate");
+```
+
+### Integrazione ILogger
+
+Collega un logger per diagnostic durante analisi e configurazione:
+
+```csharp
+analyzer.Logger = myLogger;  // ILogger<PrivacyAnalyzer>
+// Eventi loggati: categorie rilevate, score alto, load configurazioni
+```
+
+### Session Export e Persistence
+
+Esporta e importa sessioni come JSON per salvare/ripristinare lo stato tra richieste:
+
+```csharp
+var session = new PrivacySession();
+session.AddEntry("Email", "test@example.com");
+
+// Esporta
+string json = session.ToJson();
+
+// Ricostruisci
+var restored = PrivacySession.FromJson(json);
+
+// Importa in sessione esistente
+existingSession.ImportFromJson(json);
+```
+
+### IReadOnlySession
+
+API read-only sicura per esposizione pubblica:
+
+```csharp
+IReadOnlySession readOnly = session;
+int count = readOnly.Count;
+var entry = readOnly.GetEntry("[PG_1]");
+string text = readOnly.Restore(aiResponse);
+```
+
+## 🔐 Compliance & GDPR
+
+`PrivacyAnalysisResult.ComplianceFlags` combina automaticamente:
+- **YAML** — `compliance_tags` definiti per ogni regola in `rules.yaml`
+- **Hardcoded** — Mappatura automatica per categorie note (GDPR, PCI-DSS, NIST 800-53)
+
+```csharp
+if (result.ComplianceFlags.Contains("GDPR Art.4(1)"))
+{
+    // Logica per base giuridica, DPIA, minimizzazione
+}
+if (result.ComplianceFlags.Contains("PCI-DSS"))
+{
+    // Crittografia, segmentazione rete, audit
+}
 ```
 
 | **Componente**            | **Descrizione**                                                 | ****        | ****   |
@@ -165,21 +422,6 @@ Soglie di Rischio:
 | **61-85**  | 🚨 Alto             | Sandbox isolata o dati sintetici       |
 | **86-100** | 🛑 Critico          | Blocco assoluto, processing on-premise |
 
-
-# 🔐 Compliance & GDPR
-
-PrivacyAnalysisResult.ComplianceFlags mappa automaticamente i dati rilevati a framework normativi:
-
-```csharp
-if (result.ComplianceFlags.Contains("GDPR Art.4(1)"))
-{
-    // Logica per base giuridica, DPIA, minimizzazione
-}
-if (result.ComplianceFlags.Contains("PCI-DSS"))
-{
-    // Crittografia, segmentazione rete, audit
-}
-```
 
 # ⚠️ Disclaimer: Questa libreria è uno strumento tecnico di supporto. Non sostituisce una Valutazione d'Impatto sulla Protezione dei Dati (DPIA) né il parere di un DPO. La conformità GDPR richiede valutazioni contestuali, basi giuridiche e processi organizzativi.
 
@@ -217,7 +459,9 @@ Distribuito sotto licenza MIT. Vedi LICENSE per dettagli.
 | **Versione** | **Feature**                          | **Stato**      |
 |--------------|--------------------------------------|----------------|
 | **1.0**      | 27 paesi UE, masking, YAML embedded  | ✅ Release      |
-| **1.1**      | Configurazione JSON + hot-reloadog   | 🔄 In sviluppo |
+| **1.1**      | Session Restore, placeholder univoci, ripristino lato client | ✅ Release |
+| **1.2**      | JSON config, hot-reload, async API, batch analyze, session export, ILogger, netstandard2.0, whitelist lifecycle, validatori dinamici, regex cache, ValidateRules, IReadOnlySession, CHANGELOG | ✅ Release |
+| **1.3**      | Configurazione YAML remota, session streaming, dashboard CLI | 🔄 Pianificazione |
 
 
 # 🛡️ Proteggi i dati, abilita l'AI. Compliance by design.

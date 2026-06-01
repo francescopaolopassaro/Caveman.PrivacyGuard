@@ -9,10 +9,12 @@
 // GDPR/PCI-DSS/NIST compliance flags, multi-language support, and YAML-driven 
 // extensible rules. Thread-safe, embedded resources, zero external dependencies.
 // ------------------------------------------------------------------------------
+
 using System.Text.RegularExpressions;
 
 namespace Caveman.PrivacyGuard;
 
+/// <summary>Registry of algorithmic validators for PII detection. Extensible at runtime.</summary>
 public static class ValidatorRegistry
 {
     private static readonly Dictionary<string, Func<string, bool>> _validators = new(StringComparer.OrdinalIgnoreCase)
@@ -31,8 +33,33 @@ public static class ValidatorRegistry
         { "STEUER_ID_DE", V.ValidateSteuerId_DE }, { "NN_BE", V.ValidateNN_BE }
     };
 
+    /// <summary>Registers a custom validator function for the given name.</summary>
     public static void Register(string name, Func<string, bool> v) => _validators[name] = v;
-    public static bool TryGet(string name, out Func<string, bool> v) => _validators.TryGetValue(name, out v);
+
+    /// <summary>Removes a previously registered validator.</summary>
+    public static bool Unregister(string name) => _validators.Remove(name);
+
+    /// <summary>Removes all custom validators, resetting to built-in defaults.</summary>
+    public static void Reset() { _validators.Clear(); RestoreDefaults(); }
+
+    /// <summary>Attempts to retrieve a validator by name.</summary>
+    public static bool TryGet(string name, out Func<string, bool>? v) => _validators.TryGetValue(name, out v);
+
+    private static void RestoreDefaults()
+    {
+        _validators["IBAN"] = V.ValidateIBAN; _validators["LUHN"] = V.ValidateLuhn;
+        _validators["CF_IT"] = V.ValidateCF_IT; _validators["PIVA_IT"] = V.ValidatePIVA_IT;
+        _validators["NIR_FR"] = V.ValidateNIR_FR; _validators["NIF_ES"] = V.ValidateNIF_ES;
+        _validators["PESEL_PL"] = V.ValidatePESEL_PL; _validators["BSN_NL"] = V.ValidateBSN_NL;
+        _validators["PERSONNUMMER_SE"] = V.ValidatePersonnummer_SE; _validators["HETU_FI"] = V.ValidateHetu_FI;
+        _validators["CPR_DK"] = V.ValidateCPR_DK; _validators["NIF_PT"] = V.ValidateNIF_PT;
+        _validators["PPSN_IE"] = V.ValidatePPSN_IE; _validators["AFM_GR"] = V.ValidateAFM_GR;
+        _validators["RC_CZ"] = V.ValidateRC_CZ; _validators["CNP_RO"] = V.ValidateCNP_RO;
+        _validators["EGN_BG"] = V.ValidateEGN_BG; _validators["OIB_HR"] = V.ValidateOIB_HR;
+        _validators["EMSO_SI"] = V.ValidateEMSO_SI; _validators["AK_LT"] = V.ValidateAK_LT;
+        _validators["PK_LV"] = V.ValidatePK_LV; _validators["IK_EE"] = V.ValidateIK_EE;
+        _validators["STEUER_ID_DE"] = V.ValidateSteuerId_DE; _validators["NN_BE"] = V.ValidateNN_BE;
+    }
 
     private static class V
     {
@@ -190,26 +217,20 @@ public static class ValidatorRegistry
         internal static bool ValidateRC_CZ(string s)
         {
             var clean = s.Replace("/", "");
-     
             if (clean.Length is not 9 and not 10 || !clean.All(char.IsDigit)) return false;
-
             int y = int.Parse(clean.Substring(0, 2));
             int m = int.Parse(clean.Substring(2, 2));
-            if (m > 50) m -= 50; 
-
-
+            if (m > 50) m -= 50;
             if (!DateTime.TryParseExact($"{y:D2}-{m:D2}-{clean.Substring(4, 2):D2}", "yy-MM-dd", null, System.Globalization.DateTimeStyles.None, out _))
                 return false;
-
-    
             if (clean.Length == 10)
             {
                 long first9 = long.Parse(clean.Substring(0, 9));
                 int check = (int)(first9 % 11);
-                if (check == 10) return false; 
+                if (check == 10) return false;
                 return check == clean[9] - '0';
             }
-            return true; 
+            return true;
         }
 
         internal static bool ValidateCNP_RO(string s)
