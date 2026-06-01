@@ -6,7 +6,7 @@
     <Nullable>enable</Nullable>
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
     <PackageId>Caveman.PrivacyGuard</PackageId>
-    <Version>1.2.0</Version>
+    <Version>1.2.1</Version>
     <Authors>Francesco Paolo Passaro</Authors>
     <Description>Enterprise-grade PII &amp; Privacy Analyzer for AI/LLM workflows. Detects, scores, and auto-masks sensitive data across 27 EU countries with GDPR/PCI-DSS/NIST compliance flags, multi-language support, and YAML-driven extensible rules.</Description>
     <PackageReadmeFile>README.md</PackageReadmeFile>

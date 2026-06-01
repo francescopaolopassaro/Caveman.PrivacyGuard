@@ -1,5 +1,16 @@
 # Changelog
 
+## [1.2.1] - 2026-06-01
+
+### Fixed
+- 🛑 **Critical: German ID Card false positives** — regex `\b[A-Z0-9]{9}\b` con `RegexOptions.IgnoreCase`
+  globale matchava qualsiasi parola di 9 caratteri (es. "francesco", "contratto") come "German ID Card".
+  Aggiunto `(?-i)` inline per ripristinare case-sensitivity. (`rules.yaml:135`)
+
+### Added
+- Demo: `/restore` comando interattivo per ripristinare placeholder da risposta AI
+- Demo: `/roundtrip` demo completa mask → AI → restore client-side
+
 ## [1.2.0] - 2026-06-02
 
 ### Added

@@ -216,8 +216,9 @@ Distribuito sotto licenza MIT. Vedi LICENSE per dettagli.
 
 | **Versione** | **Feature**                          | **Stato**      |
 |--------------|--------------------------------------|----------------|
+| **1.2.1**    | Bugfix: German ID Card false positives, demo round-trip | ✅ Release |
 | **1.2**      | 27 paesi UE, masking, YAML embedded  | ✅ Release      |
-| **1.3**      | Configurazione JSON + hot-reloadog   | 🔄 In sviluppo |
+| **1.3**      | Configurazione JSON + hot-reload     | 🔄 In sviluppo |
 
 
 # 🛡️ Proteggi i dati, abilita l'AI. Compliance by design.

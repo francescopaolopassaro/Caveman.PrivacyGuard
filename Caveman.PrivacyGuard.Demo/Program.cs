@@ -108,6 +108,20 @@ internal static class Program
                 continue;
             }
 
+            if (input.Trim().Equals("/restore", StringComparison.OrdinalIgnoreCase))
+            {
+                ShowRestorePrompt();
+                ShowDivider();
+                continue;
+            }
+
+            if (input.Trim().Equals("/roundtrip", StringComparison.OrdinalIgnoreCase))
+            {
+                ShowRoundtrip();
+                ShowDivider();
+                continue;
+            }
+
             AnalyzeAndDisplay(input);
             ShowDivider();
         }
@@ -223,7 +237,7 @@ internal static class Program
         Console.ForegroundColor = ConsoleColor.Cyan;
         Console.WriteLine(@"
   ╔══════════════════════════════════════════════════════════╗
-  ║  🛡️  CAVEMAN.PRIVACYGUARD v1.2                          ║
+  ║  🛡️  CAVEMAN.PRIVACYGUARD v1.2.1                        ║
   ║  Enterprise EU PII & Privacy Analyzer for AI/LLM         ║
   ║  GDPR • PCI-DSS • NIST • 27 Countries • Multi-Language   ║
   ╚══════════════════════════════════════════════════════════╝
@@ -248,6 +262,8 @@ internal static class Program
         Console.WriteLine("🔹 Type '/rules' to show loaded rule categories.");
         Console.WriteLine("🔹 Type '/export' to export session as JSON.");
         Console.WriteLine("🔹 Type '/validate' to validate all loaded rules.");
+        Console.WriteLine("🔹 Type '/restore' to restore placeholders from an AI response.");
+        Console.WriteLine("🔹 Type '/roundtrip' for a full mask → AI → restore demo.");
         Console.WriteLine("🔹 Press ESC anytime to exit.");
         Console.WriteLine("🔹 Type 'exit' or 'quit' to close gracefully.");
         Console.ResetColor();
@@ -345,6 +361,7 @@ internal static class Program
         // 🛡️ Masked Output (if enabled)
         if (!string.IsNullOrEmpty(result.MaskedText))
         {
+            _lastMasked = result.MaskedText;
             Console.ForegroundColor = ConsoleColor.Cyan;
             Console.WriteLine("\n🎭 Masked text (safe for AI):");
             Console.ResetColor();
@@ -366,12 +383,16 @@ internal static class Program
                         Console.WriteLine($"   {entry.Key} → {entry.Value.OriginalValue}  ({entry.Value.Category})");
                     }
 
-                    // 🪄 Simulate AI response restore
-                    var keys = string.Join(" and ", allEntries.Keys);
-                    var simulatedAIResponse = $"I found the following information: {keys}";
+                    // 🪄 Full round-trip: simulate AI response → restore placeholders client-side
+                    var masked = result.MaskedText;
+                    var places = string.Join(", ", allEntries.Keys);
+                    var simulatedAIResponse = $"✅ I received your request. I will process {places} and get back to you.";
                     var restored = result.Session.Restore(simulatedAIResponse);
                     Console.ForegroundColor = ConsoleColor.Green;
-                    Console.WriteLine($"\n🪄 AI response restored: {restored}");
+                    Console.WriteLine($"\n🪄 AI sees (masked):  {simulatedAIResponse}");
+                    Console.ResetColor();
+                    Console.ForegroundColor = ConsoleColor.DarkGray;
+                    Console.WriteLine($"🪄 Client restored:  {restored}");
                     Console.ResetColor();
                 }
             }
@@ -399,6 +420,97 @@ internal static class Program
         <= 85 => (ConsoleColor.Red, ConsoleColor.Black, "🚨"),
         _ => (ConsoleColor.White, ConsoleColor.DarkRed, "🛑")
     };
+
+    private static void ShowRestorePrompt()
+    {
+        if (_session == null || _session.Count == 0)
+        {
+            Console.ForegroundColor = ConsoleColor.Yellow;
+            Console.WriteLine("📭 No active session. First type a message to create placeholder mappings.");
+            Console.ResetColor();
+            return;
+        }
+
+        Console.ForegroundColor = ConsoleColor.Cyan;
+        Console.WriteLine("📋 Paste an AI response containing placeholders (e.g. '[PG_1]') to restore original values.");
+        Console.ResetColor();
+        Console.ForegroundColor = ConsoleColor.DarkGray;
+        Console.WriteLine("   Tip: type 'auto' to use the masked text from the last analysis.");
+        Console.ResetColor();
+        Console.Write("✏️  AI response: ");
+        var aiInput = Console.ReadLine();
+        if (string.IsNullOrWhiteSpace(aiInput)) return;
+
+        if (aiInput.Trim().Equals("auto", StringComparison.OrdinalIgnoreCase))
+        {
+            Console.ForegroundColor = ConsoleColor.Gray;
+            Console.WriteLine($"   Using last masked text as AI response: {_lastMasked}");
+            Console.ResetColor();
+            aiInput = _lastMasked;
+        }
+
+        var restored = _session.Restore(aiInput ?? "");
+        var detailed = _session.RestoreDetailed(aiInput ?? "");
+
+        Console.ForegroundColor = ConsoleColor.Green;
+        Console.WriteLine($"\n🪄 Restored ({detailed.RestoredCount} replacements):");
+        Console.ResetColor();
+        Console.ForegroundColor = ConsoleColor.Gray;
+        Console.WriteLine($"   {restored}");
+        Console.ResetColor();
+
+        if (detailed.RestoredCount == 0)
+        {
+            Console.ForegroundColor = ConsoleColor.Yellow;
+            Console.WriteLine("   ⚠️ No placeholders found. Ensure the text contains [PG_N] tokens from this session.");
+            Console.ResetColor();
+        }
+    }
+
+    private static void ShowRoundtrip()
+    {
+        Console.ForegroundColor = ConsoleColor.Cyan;
+        Console.WriteLine("🔄 Full Round-Trip Demo (mask → AI → restore)");
+        Console.ResetColor();
+        Console.WriteLine();
+
+        var demoInput = "Buongiorno, il mio CF è RSSMRA80A01H501U, email mario.rossi@example.com, IBAN IT60X0542811101000000123456.";
+        Console.ForegroundColor = ConsoleColor.DarkGray;
+        Console.WriteLine($"📥 Original input:");
+        Console.ResetColor();
+        Console.WriteLine($"   {demoInput}");
+        Console.WriteLine();
+
+        var session = new PrivacySession();
+        var result = _analyzer.Analyze(demoInput, "en", session);
+
+        Console.ForegroundColor = ConsoleColor.Gray;
+        Console.WriteLine($"🎭 Masked (safe for AI):");
+        Console.ResetColor();
+        Console.WriteLine($"   {result.MaskedText}");
+        Console.WriteLine();
+
+        var placeholders = string.Join(", ", result.Session!.GetAll().Keys);
+        var aiResponse = $"Grazie, ho ricevuto la sua richiesta. Elaborerò i dati {placeholders} e la contatterò a breve.";
+        Console.ForegroundColor = ConsoleColor.DarkGray;
+        Console.WriteLine($"🤖 AI response (still masked):");
+        Console.ResetColor();
+        Console.WriteLine($"   {aiResponse}");
+        Console.WriteLine();
+
+        var restored = session.Restore(aiResponse);
+        Console.ForegroundColor = ConsoleColor.Green;
+        Console.WriteLine($"🪄 Restored client-side:");
+        Console.ResetColor();
+        Console.WriteLine($"   {restored}");
+        Console.WriteLine();
+
+        Console.ForegroundColor = ConsoleColor.Cyan;
+        Console.WriteLine($"✅ Round-trip completato: {result.Session.Count} placeholder(s) → {result.Session.Count} ripristino(i)");
+        Console.ResetColor();
+    }
+
+    private static string? _lastMasked;
 
     private static void ShowDivider()
     {

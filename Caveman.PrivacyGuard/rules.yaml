@@ -132,7 +132,7 @@ countries:
         context_keywords: ["steuer-id", "steueridentifikationsnummer", "steuernummer"]
         compliance_tags: ["DSGVO", "BfDI"]
       - category: "German ID Card"
-        pattern: '\b[A-Z0-9]{9}\b'
+        pattern: '(?-i)\b[A-Z0-9]{9}\b'
         base_weight: 14
         context_keywords: ["ausweis", "personalausweis", "reisepass", "id-karte"]
         compliance_tags: ["DSGVO"]
