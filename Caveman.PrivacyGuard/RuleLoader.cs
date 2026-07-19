@@ -5,7 +5,7 @@
 // https://github.com/francescopaolopassaro/Caveman.PrivacyGuard
 //
 // Enterprise-grade PII & Privacy Analyzer for AI/LLM workflows.
-// Detects, scores, and auto-masks sensitive data across 27 EU countries with 
+// Detects, scores, and auto-masks sensitive data across 32 countries (27 EU + UK, Switzerland, China, Russia, Ukraine) with 
 // GDPR/PCI-DSS/NIST compliance flags, multi-language support, and YAML-driven 
 // extensible rules. Thread-safe, embedded resources, zero external dependencies.
 // ------------------------------------------------------------------------------

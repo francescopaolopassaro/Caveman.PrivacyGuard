@@ -1,264 +1,324 @@
-﻿# Caveman.PrivacyGuard 🛡️🇪🇺
+# Caveman.PrivacyGuard 🛡️🇪🇺
 
 <img width="638" height="408" alt="Gemini_Generated_Image_tnxoi9tnxoi9tnxo" src="https://github.com/user-attachments/assets/5a8e3193-b7d3-4a41-90e6-e672467ce6cb" />
 
-
-
 [![NuGet](https://img.shields.io/nuget/v/Caveman.PrivacyGuard.svg)](https://www.nuget.org/packages/Caveman.PrivacyGuard)
 [![Downloads](https://img.shields.io/nuget/dt/Caveman.PrivacyGuard.svg)](https://www.nuget.org/packages/Caveman.PrivacyGuard)
-[![License](https://img.shields.io/github/license/caveman/privacyguard.svg)](LICENSE)
+[![License](https://img.shields.io/github/license/francescopaolopassaro/Caveman.PrivacyGuard.svg)](LICENSE)
 [![.NET 8](https://img.shields.io/badge/.NET-8.0-blueviolet)](https://dotnet.microsoft.com)
 [![.NET Standard 2.0](https://img.shields.io/badge/.NET_Standard-2.0-purple)](https://docs.microsoft.com/en-us/dotnet/standard/net-standard)
 [![GDPR Ready](https://img.shields.io/badge/GDPR-Compliant-green)](https://gdpr.eu)
 
-> **Enterprise-grade PII & Privacy Analyzer for AI/LLM workflows**  
-> Rileva, valuta e maschera automaticamente dati sensibili in **27 paesi UE**, con scoring del rischio, conformità GDPR/PCI-DSS/NIST e integrazione seamless con qualsiasi pipeline AI.
+> **Enterprise-grade PII & Privacy Analyzer for AI/LLM workflows**
+> Detects, scores, and automatically masks sensitive data across **32 countries** (27 EU + UK, Switzerland, China, Russia, Ukraine), with risk scoring, GDPR/AI Act/NIS2/PCI-DSS/NIST compliance mapping, and seamless integration with any AI pipeline — including multi-session scenarios (multiple chatbots/conversations running in parallel).
 
 ---
 
 ## ✨ Features
 
-| Feature | Descrizione |
+| Feature | Description |
 |---------|-------------|
-| 🌍 **27 Paesi UE** | Pattern nativi per IT, DE, FR, ES, PL, NL, SE, FI, DK, AT, BE, PT, IE, GR, CZ, RO, HU, BG, HR, SK, SI, LT, LV, EE, CY, MT, LU + regole EU generiche |
-| 🔍 **Detection Euristica** | Regex precompilate + validatori algoritmici (Luhn, IBAN MOD97, checksum nazionali) + analisi entropia Shannon |
-| 📊 **Privacy Score** | Punteggio 0-100 con livelli: `Sicuro` → `Basso` → `Medio` → `Alto` → `Critico` |
-| 🎭 **Auto-Masking** | Sostituzione dinamica con placeholder contestuali (`[EMAIL]`, `[IBAN]`, `[CF_IT]`, ecc.) |
-| ⚙️ **YAML-Driven** | Regole configurabili in `rules.yaml` embedded, estendibili a runtime |
-| 🔐 **Compliance Flags** | Mappatura automatica a GDPR, PCI-DSS, NIST 800-53, autorità nazionali (CNIL, BfDI, AEPD, ecc.) |
-| 🧵 **Thread-Safe** | Pronto per microservizi ad alto throughput con `ReaderWriterLockSlim` e regex cache |
-| 🔄 **Session Restore** | Placeholder univoci `[PG_N]` per occorrenza, ripristino lato client dei dati originali nelle risposte AI, zero dati sensibili inviati al LLM |
-| ✂️ **Dynamic Rules** | Carica/scarica/ispeziona regole a runtime: `LoadCustomYaml`, `RemoveRule()`, `GetRule()`, `GetLoadedCategories()` |
+| 🌍 **32 Countries** | Native patterns for all 27 EU countries (IT, DE, FR, ES, PL, NL, SE, FI, DK, AT, BE, PT, IE, GR, CZ, RO, HU, BG, HR, SK, SI, LT, LV, EE, CY, MT, LU) + generic EU rules, plus **UK, Switzerland, China, Russia, Ukraine** |
+| 🔍 **Heuristic Detection** | Precompiled regex + algorithmic validators (Luhn, IBAN MOD97, national checksums) + Shannon entropy analysis |
+| 📊 **Privacy Score** | 0-100 score with levels: `Safe` → `Low` → `Medium` → `High` → `Critical` |
+| 🎭 **Auto-Masking** | Dynamic replacement with contextual placeholders (`[EMAIL]`, `[IBAN]`, `[CF_IT]`, etc.) |
+| ⚙️ **YAML-Driven** | Configurable rules in an embedded `rules.yaml`, extensible at runtime |
+| 🔐 **Compliance Flags** | Automatic mapping to GDPR, EU AI Act, NIS2, PCI-DSS, NIST 800-53, national authorities (CNIL, BfDI, AEPD, etc.) |
+| 🧵 **Thread-Safe** | Ready for high-throughput microservices with `ReaderWriterLockSlim` and a regex cache |
+| 🔄 **Session Restore** | Unique `[PG_N]` placeholders per occurrence, client-side restoration of original data in AI responses, zero sensitive data sent to the LLM |
+| ✂️ **Dynamic Rules** | Load/unload/inspect rules at runtime: `LoadCustomYaml`, `RemoveRule()`, `GetRule()`, `GetLoadedCategories()` |
 | 🧹 **Whitelist Lifecycle** | `AddToWhitelist`, `RemoveFromWhitelist`, `ClearWhitelist`, `GetWhitelist`, `IsWhitelisted` |
-| 🔌 **Extensible Validators** | Registra, rimuovi o resetta validatori personalizzati con `ValidatorRegistry.Register` / `Unregister` / `Reset` |
-| ⚡ **Async API** | `AnalyzeAsync` con 4 overload + `CancellationToken` per UI/web |
-| 🔌 **JSON Config** | `LoadCustomJson` / `LoadCustomJsonFromString` con hot-reload (`WatchConfig` / `ConfigReloaded`) |
-| 💾 **Session Export** | `ToJson` / `FromJson` / `ImportFromJson` per persistenza placeholder |
-| 🔍 **IReadOnlySession** | Interfaccia read-only per API pubbliche che non devono mutare la sessione |
-| ✅ **ValidateRules** | Metodo pubblico per validare tutte le regole caricate |
-| 🛡️ **Safe Dispose** | `ThrowIfDisposed()` su tutti i metodi pubblici, `catch(SynchronizationLockException)` graceful |
-| 🪵 **ILogger** | Integrazione con `Microsoft.Extensions.Logging.Abstractions` per diagnostic |
-| 📋 **CHANGELOG** | Tracciamento versioni incluso nel pacchetto NuGet |
-| 🌐 **.NET Standard 2.0** | Compatibile con framework .NET legacy |
-| 🚀 **Performance** | `RegexOptions.NonBacktracking` (.NET 8), pre-compilazione, cache O(1), zero allocazioni ridondanti, timeout 3s anti-ReDoS |
+| 🔌 **Extensible Validators** | Register, remove, or reset custom validators via `ValidatorRegistry.Register` / `Unregister` / `Reset` |
+| ⚡ **Async API** | `AnalyzeAsync` with 4 overloads + `CancellationToken` for UI/web |
+| 🔌 **JSON Config** | `LoadCustomJson` / `LoadCustomJsonFromString` with hot-reload (`WatchConfig` / `ConfigReloaded`) |
+| 💾 **Session Export** | `ToJson` / `FromJson` / `ImportFromJson` for placeholder persistence |
+| 🔍 **IReadOnlySession** | Read-only interface for public APIs that must not mutate the session |
+| ✅ **ValidateRules** | Public method to validate all loaded rules |
+| 🛡️ **Safe Dispose** | `ThrowIfDisposed()` on all public methods, graceful `catch(SynchronizationLockException)` |
+| 🪵 **ILogger** | Integration with `Microsoft.Extensions.Logging.Abstractions` for diagnostics |
+| 📋 **CHANGELOG** | Version history shipped inside the NuGet package |
+| 🌐 **.NET Standard 2.0** | Compatible with legacy .NET frameworks |
+| 🧑‍🤝‍🧑 **Multi-Session** | `PrivacySessionManager` isolates sessions per conversation/user/tenant — built for backends running multiple chatbots or an AI provider handling many concurrent conversations |
+| 💬 **AI Transparency Notice** | `AiTransparencyNotice` — a configurable, localized (EN/IT/DE/FR/ES) message informing users they're talking to an AI system and that sensitive data is masked |
+| 🧭 **Chat Intent Router** | `ChatIntentRouter` — routes bot commands (e.g. `/reset`, `/help`) before the text reaches the analyzer |
+| 🚀 **Performance** | `RegexOptions.NonBacktracking` (.NET 8), precompilation, O(1) cache, zero redundant allocations, 3s anti-ReDoS timeout |
 
 ---
 
-## 📦 Installazione
+## 📦 Installation
 
 ```bash
 dotnet add package Caveman.PrivacyGuard
 ```
 ## 🚀 Quick Start
-Modalità Avviso (Default)
+Warning Mode (Default)
 
 ```csharp
 var analyzer = new PrivacyAnalyzer { EnableAutoMasking = true };
 
-// 🔹 Default: Inglese
+// 🔹 Default: English
 var resEn = analyzer.Analyze("CF: RSSMRA80A01H501U, email: test@x.com");
 Console.WriteLine($"[EN] Risk: {resEn.RiskLevel}\n{resEn.WarningMessage}");
 
-// 🔹 Overload: Italiano
+// 🔹 Overload: Italian
 var resIt = analyzer.Analyze("CF: RSSMRA80A01H501U, email: test@x.com", "it");
-Console.WriteLine($"[IT] Rischio: {resIt.RiskLevel}\n{resIt.WarningMessage}");
+Console.WriteLine($"[IT] Risk: {resIt.RiskLevel}\n{resIt.WarningMessage}");
 
-// 🔹 Overload: Tedesco
+// 🔹 Overload: German
 var resDe = analyzer.Analyze("Steuer-ID: 12345678901, IBAN: DE89370400440532013000", "de");
-Console.WriteLine($"[DE] Risiko: {resDe.RiskLevel}\n{resDe.WarningMessage}");
+Console.WriteLine($"[DE] Risk: {resDe.RiskLevel}\n{resDe.WarningMessage}");
 ```
 Output:
 
 ```bash
 🔒 Score: 26/100
-⚠️  Avviso: ⛔ Dati rilevati: Codice Fiscale (IT), Email. Pseudonimizzazione obbligatoria.
+⚠️  Warning: ⛔ Data detected: Italian Tax Code (CF), Email. Pseudonymization mandatory.
 ✅ Safe for AI: False
 ```
 
 ```csharp
 var analyzer = new PrivacyAnalyzer { EnableAutoMasking = true };
 
-var text = "Cliente: Mario Rossi, email mario@azienda.it, IBAN: IT60X0542811101000000123456";
+var text = "Customer: Mario Rossi, email mario@company.it, IBAN: IT60X0542811101000000123456";
 var result = analyzer.Analyze(text);
 
-Console.WriteLine($"🛡️  Testo sicuro per LLM:\n{result.MaskedText}");
+Console.WriteLine($"🛡️  Text safe for LLM:\n{result.MaskedText}");
 ```
 
 Output:
 
 ```bash
-🛡️  Testo sicuro per LLM:
-Cliente: Mario Rossi, email [EMAIL], IBAN: [IBAN]
+🛡️  Text safe for LLM:
+Customer: Mario Rossi, email [EMAIL], IBAN: [IBAN]
 ```
 
 ## 🪄 Session Restore — Zero Sensitive Data to the LLM
 
-Il vero punto di forza: i dati sensibili **non lasciano mai il client**. Il flusso è:
+The core value proposition: sensitive data **never leaves the client**. The flow is:
 
-1. **Mask** — `PrivacyAnalyzer` rileva e sostituisce con placeholder univoci `[PG_1]`, `[PG_2]`, ecc.
-2. **Send** — Il testo mascherato (privo di dati reali) viene inviato al LLM
-3. **Restore** — La risposta del LLM viene processata da `PrivacySession.Restore()` che ripristina i valori originali **lato client**
+1. **Mask** — `PrivacyAnalyzer` detects PII and replaces it with unique placeholders `[PG_1]`, `[PG_2]`, etc.
+2. **Send** — The masked text (no real data) is sent to the LLM
+3. **Restore** — The LLM's response is processed by `PrivacySession.Restore()`, which restores the original values **client-side**
 
 ```csharp
 var session = new PrivacySession();
 var analyzer = new PrivacyAnalyzer { EnableAutoMasking = true };
 
-// 1. Analizza e maschera (i dati restano solo nella session)
+// 1. Analyze and mask (the real data only lives in the session)
 var result = analyzer.Analyze(
-    "Mario Rossi, email mario@azienda.it, IBAN: IT60X0542811101000000123456",
+    "Mario Rossi, email mario@company.it, IBAN: IT60X0542811101000000123456",
     "en", session);
 
 Console.WriteLine(result.MaskedText);
 // Output: Mario Rossi, email [PG_1], IBAN: [PG_2]
 
-// 2. Invia result.MaskedText al LLM...
-var aiResponse = "Contatta il cliente via [PG_1] per l'addebito su [PG_2]";
+// 2. Send result.MaskedText to the LLM...
+var aiResponse = "Contact the customer via [PG_1] regarding the charge on [PG_2]";
 
-// 3. Ripristina lato client (nessun dato sensibile è mai uscito)
+// 3. Restore client-side (no sensitive data ever left the client)
 var safeResponse = session.Restore(aiResponse);
 Console.WriteLine(safeResponse);
-// Output: Contatta il cliente via mario@azienda.it per l'addebito su IT60X0542811101000000123456
+// Output: Contact the customer via mario@company.it regarding the charge on IT60X0542811101000000123456
 ```
 
 ### API Reference
 
 ```csharp
-// Crea una nuova sessione
+// Create a new session
 var session = new PrivacySession();
 
-// Analizza con sessione (placeholder univoci [PG_N])
+// Analyze with a session (unique [PG_N] placeholders)
 var result = analyzer.Analyze(input, "en", session);
 
-// Oppure via proprietà CurrentSession
+// Or via the CurrentSession property
 analyzer.CurrentSession = new PrivacySession();
 var result = analyzer.Analyze(input);
 
-// Ripristina una risposta AI
+// Restore an AI response
 string restored = session.Restore(aiResponseText);
 
-// Ispeziona i placeholder generati
+// Inspect the generated placeholders
 foreach (var entry in session.GetAll())
     Console.WriteLine($"{entry.Key} → {entry.Value.OriginalValue} ({entry.Value.Category})");
 
-// Ottieni un singolo mapping
+// Get a single mapping
 var entry = session.GetEntry("[PG_1]");
 
-// Aggiungi manualmente un placeholder (pubblico)
+// Manually add a placeholder (public)
 session.AddOrGet("Email", "manual@test.com");
 
-// Unisci un'altra sessione (ignora duplicati per valore)
+// Merge another session (skips duplicates by value)
 session.MergeFrom(anotherSession);
 
-// Resetta la sessione
+// Reset the session
 session.Clear();
 
-// Metodo statico su PrivacyAnalyzer
+// Static method on PrivacyAnalyzer
 string restored = PrivacyAnalyzer.RestoreText(aiResponse, session);
 
-// Metodo di istanza (usa CurrentSession)
+// Instance method (uses CurrentSession)
 analyzer.CurrentSession = session;
 string restored2 = analyzer.RestoreText(aiResponse);
 ```
 
-> **Nota:** Senza sessione (`Analyze(input)` o `Analyze(input, lang)`), il masking usa i placeholder testuali `[EMAIL]`, `[IBAN]`, ecc. come in precedenza.
+> **Note:** Without a session (`Analyze(input)` or `Analyze(input, lang)`), masking uses the textual placeholders `[EMAIL]`, `[IBAN]`, etc. as before.
 
-| **Codice**  | **Paese**   | **Identificatori Principali** | **Autorità di Riferimento**      |
+### Countries Covered
+
+| **Code**  | **Country** | **Main Identifiers** | **Reference Authority**      |
 |-------------|-------------|-------------------------------|----------------------------------|
-| **🇮🇹 IT** | Italia      | Codice Fiscale, Partita IVA   | Garante Privacy, Agenzia Entrate |
-| **🇩🇪 DE** | Germania    | Steuer-ID, Personalausweis    | BfDI, DSGVO                      |
-| **🇫🇷 FR** | Francia     | NIR/SSN, SIREN/SIRET          | CNIL, RGPD                       |
-| **🇪🇸 ES** | Spagna      | NIF/NIE                       | AEPD, RGPD                       |
-| **🇵🇱 PL** | Polonia     | PESEL, NIP                    | UODO, RODO                       |
-| **🇳🇱 NL** | Paesi Bassi | BSN                           | AP, AVG                          |
-| **🇸🇪 SE** | Svezia      | Personnummer                  | IMY                              |
-| **🇫🇮 FI** | Finlandia   | Henkilötunnus (HETU)          | Tietosuojavaltuutettu            |
-| **🇩🇰 DK** | Danimarca   | CPR                           | Datatilsynet                     |
-| **🇦🇹 AT** | Austria     | SV-Nummer, UID                | DSB                              |
-| **🇧🇪 BE** | Belgio      | Numéro National               | APD                              |
-| **🇵🇹 PT** | Portogallo  | NIF                           | CNPD                             |
-| **🇮🇪 IE** | Irlanda     | PPSN                          | DPC                              |
-| **🇬🇷 GR** | Grecia      | AFM, AMKA                     | HDPA                             |
-| **🇨🇿 CZ** | Cechia      | Rodné číslo                   | ÚOOÚ                             |
-| **🇷🇴 RO** | Romania     | CNP                           | ANSPDCP                          |
-| **🇭🇺 HU** | Ungheria    | Adóazonosító                  | NAIH                             |
-| **🇧🇬 BG** | Bulgaria    | EGN                           | CPDP                             |
-| **🇭🇷 HR** | Croazia     | OIB                           | AZOP                             |
-| **🇸🇰 SK** | Slovacchia  | Rodné číslo                   | ÚOOÚ                             |
-| **🇸🇮 SI** | Slovenia    | EMŠO                          | IP                               |
-| **🇱🇹 LT** | Lituania    | Asmens kodas                  | VDAI                             |
-| **🇱🇻 LV** | Lettonia    | Personas kods                 | DVI                              |
-| **🇪🇪 EE** | Estonia     | Isikukood                     | AKI                              |
-| **🇨🇾 CY** | Cipro       | ID Number                     | CIPD                             |
-| **🇲🇹 MT** | Malta       | ID Number                     | IDPC                             |
-| **🇱🇺 LU** | Lussemburgo | Numéro d'identification       | CNPD                             |
+| **🇮🇹 IT** | Italy       | Tax Code (CF), VAT Number     | Garante Privacy, Revenue Agency |
+| **🇩🇪 DE** | Germany     | Tax ID, ID Card               | BfDI, GDPR                       |
+| **🇫🇷 FR** | France      | NIR/SSN, SIREN/SIRET          | CNIL, GDPR                       |
+| **🇪🇸 ES** | Spain       | NIF/NIE                       | AEPD, GDPR                       |
+| **🇵🇱 PL** | Poland      | PESEL, NIP                    | UODO, GDPR                       |
+| **🇳🇱 NL** | Netherlands | BSN                           | AP, GDPR                         |
+| **🇸🇪 SE** | Sweden      | Personnummer                  | IMY                              |
+| **🇫🇮 FI** | Finland     | Henkilötunnus (HETU)          | Data Protection Ombudsman        |
+| **🇩🇰 DK** | Denmark     | CPR                           | Datatilsynet                     |
+| **🇦🇹 AT** | Austria     | Social Insurance No., VAT ID  | DSB                               |
+| **🇧🇪 BE** | Belgium     | National Registry Number      | APD                               |
+| **🇵🇹 PT** | Portugal    | NIF                           | CNPD                              |
+| **🇮🇪 IE** | Ireland     | PPSN                          | DPC                               |
+| **🇬🇷 GR** | Greece      | AFM, AMKA                     | HDPA                              |
+| **🇨🇿 CZ** | Czechia     | Birth Number                  | ÚOOÚ                              |
+| **🇷🇴 RO** | Romania     | CNP                           | ANSPDCP                           |
+| **🇭🇺 HU** | Hungary     | Tax ID                        | NAIH                              |
+| **🇧🇬 BG** | Bulgaria    | EGN                           | CPDP                              |
+| **🇭🇷 HR** | Croatia     | OIB                           | AZOP                              |
+| **🇸🇰 SK** | Slovakia    | Birth Number                  | ÚOOÚ                              |
+| **🇸🇮 SI** | Slovenia    | EMŠO                          | IP                                |
+| **🇱🇹 LT** | Lithuania   | Personal Code                 | VDAI                              |
+| **🇱🇻 LV** | Latvia      | Personal Code                 | DVI                               |
+| **🇪🇪 EE** | Estonia     | Isikukood                     | AKI                               |
+| **🇨🇾 CY** | Cyprus      | ID Number                     | CIPD                              |
+| **🇲🇹 MT** | Malta       | ID Number                     | IDPC                              |
+| **🇱🇺 LU** | Luxembourg  | National ID Number            | CNPD                              |
+| **🇬🇧 GB** | United Kingdom | National Insurance Number (NINO) | ICO                        |
+| **🇨🇭 CH** | Switzerland | AHV/AVS Number                | FDPIC                             |
+| **🇨🇳 CN** | China       | Resident ID Number            | CAC (PIPL)                        |
+| **🇷🇺 RU** | Russia      | Taxpayer ID (INN)             | Roskomnadzor                      |
+| **🇺🇦 UA** | Ukraine     | Taxpayer Number (RNOKPP)      | State Data Protection Service     |
 
+## 🧑‍🤝‍🧑 Multi-Session: Multiple Chatbots / AI Providers
 
-## ⚙️ Configurazione Avanzata
+If your service juggles many concurrent conversations — several chatbot instances, or an AI-provider-facing gateway serving many users — `PrivacySessionManager` keeps each conversation's placeholder mapping isolated, so one conversation can never leak another's data.
 
-### Whitelist (Esclusioni Sicure)
+```csharp
+var sessions = new PrivacySessionManager();
+var analyzer = new PrivacyAnalyzer { EnableAutoMasking = true };
+
+// Each conversation gets (and reuses) its own isolated session
+var chat1 = sessions.GetOrCreate("conversation-123");
+var chat2 = sessions.GetOrCreate("conversation-456");
+
+var r1 = analyzer.Analyze("email alice@example.com", "en", chat1);
+var r2 = analyzer.Analyze("email bob@example.com", "en", chat2);
+
+// chat1 can only restore its own placeholders — chat2's data never crosses over
+var restored = chat1.Restore(r1.MaskedText);
+
+// Periodically bound memory usage in long-running services:
+int removed = sessions.PruneIdleSessions(TimeSpan.FromMinutes(30));
+```
+
+## 💬 AI Transparency Notice & 🧭 Chat Intent Router
+
+For chatbot/assistant use cases, `AiTransparencyNotice` gives you a ready-to-display, configurable disclosure that the user is talking to an AI system and that their data is screened/masked — a technical aid toward the transparency expectations of EU AI Act Art.50 for limited-risk AI systems (whether it fully satisfies your specific obligations depends on your use case and should be confirmed with legal counsel).
+
+```csharp
+var notice = new AiTransparencyNotice { Language = "en" }; // or "it", "de", "fr", "es"
+Console.WriteLine(notice.GetMessage());
+// "You are interacting with an AI system. Your messages are screened locally and any
+//  personal or sensitive data is masked before being sent to the AI model (EU AI Act
+//  Art.50 transparency notice)."
+
+// Disable it, or supply your own wording:
+notice.Enabled = false;
+notice.CustomMessage = "Custom disclosure text for your organization.";
+```
+
+`ChatIntentRouter` lets you register bot commands (e.g. `/reset`, `/help`) and route them before the text ever reaches the analyzer:
+
+```csharp
+var router = new ChatIntentRouter();
+router.RegisterCommand("/reset", _ => session.Clear());
+router.RegisterCommand("/help", _ => ShowHelp());
+
+var matchedIntent = router.TryRoute(userInput);
+if (matchedIntent is null)
+{
+    // No command matched: treat userInput as regular content to analyze/mask.
+    var result = analyzer.Analyze(userInput, "en", session);
+}
+```
+
+## ⚙️ Advanced Configuration
+
+### Whitelist (Safe Exclusions)
 
 ```csharp
 analyzer.AddToWhitelist(
-    "test@company.eu",      // Email di test
-    "127.0.0.1",            // IP localhost
-    "IT00000000000"         // PIVA dummy
+    "test@company.eu",      // Test email
+    "127.0.0.1",             // Localhost IP
+    "IT00000000000"         // Dummy VAT number
 );
 
-// Rimozione e reset
+// Removal and reset
 analyzer.RemoveFromWhitelist("test@company.eu");
-analyzer.ClearWhitelist();  // rimuove tutte le esclusioni
+analyzer.ClearWhitelist();  // removes all exclusions
 
-// Ispezione
+// Inspection
 var all = analyzer.GetWhitelist();     // IReadOnlySet<string>
 if (analyzer.IsWhitelisted("127.0.0.1"))
-    Console.WriteLine("IP nella whitelist");
+    Console.WriteLine("IP is whitelisted");
 ```
 
-### Validatori Personalizzati
+### Custom Validators
 
 ```csharp
-// Registra un nuovo validatore per un formato nazionale custom
-ValidatorRegistry.Register("MY_CUSTOM_ID", value => 
+// Register a new validator for a custom national format
+ValidatorRegistry.Register("MY_CUSTOM_ID", value =>
     value.Length == 10 && value.StartsWith("XYZ") && value.All(char.IsDigit));
 
-// Rimuove un validatore esistente
+// Remove an existing validator
 ValidatorRegistry.Unregister("MY_CUSTOM_ID");
 
-// Resetta tutti i validatori ai built-in (rimuove i custom)
+// Reset all validators to the built-in defaults (removes custom ones)
 ValidatorRegistry.Reset();
 ```
 
-### Ispezione e Gestione Regole a Runtime
+### Runtime Rule Inspection & Management
 
 ```csharp
-// Elenca tutte le categorie di regole attualmente caricate
+// List all currently loaded rule categories
 var categories = analyzer.GetLoadedCategories();
 
-// Ispeziona una regola specifica (regex, peso, validatore, ecc.)
+// Inspect a specific rule (regex, weight, validator, etc.)
 var emailRule = analyzer.GetRule("Email");
-Console.WriteLine(emailRule.Pattern);   // regex compilata
-Console.WriteLine(emailRule.BaseWeight); // peso
+Console.WriteLine(emailRule.Pattern);   // compiled regex
+Console.WriteLine(emailRule.BaseWeight); // weight
 
-// Rimuove tutte le regole di una categoria
+// Remove all rules for a category
 analyzer.RemoveRule("Email");
 
-// Pulisce TUTTE le regole (embedded + custom)
+// Clear ALL rules (embedded + custom)
 analyzer.ClearRules();
 ```
 
-### Rilascio Risorse
+### Resource Disposal
 
-`PrivacyAnalyzer` implementa `IDisposable` per rilasciare il `ReaderWriterLockSlim`. Tutti i metodi pubblici lanciano `ObjectDisposedException` se chiamati dopo lo smaltimento:
+`PrivacyAnalyzer` implements `IDisposable` to release its `ReaderWriterLockSlim`. All public methods throw `ObjectDisposedException` if called after disposal:
 
 ```csharp
 using var analyzer = new PrivacyAnalyzer { EnableAutoMasking = true };
 var result = analyzer.Analyze("test@example.com");
-// analyzer.Dispose() chiamato automaticamente all'uscita del using
+// analyzer.Dispose() is called automatically on exiting the using block
 ```
 
-### Analisi Asincrona
+### Async Analysis
 
-Per applicazioni UI o web, `AnalyzeAsync` esegue l'analisi su un thread pool e supporta `CancellationToken`:
+For UI or web applications, `AnalyzeAsync` runs the analysis on the thread pool and supports `CancellationToken`:
 
 ```csharp
 using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
@@ -273,19 +333,19 @@ try
 }
 catch (OperationCanceledException)
 {
-    Console.WriteLine("Analisi cancellata per timeout.");
+    Console.WriteLine("Analysis cancelled due to timeout.");
 }
 ```
 
-Overload disponibili: `AnalyzeAsync(input)`, `AnalyzeAsync(input, session, ct)`, `AnalyzeAsync(input, language, ct)`, `AnalyzeAsync(input, language, session, ct)`.
+Available overloads: `AnalyzeAsync(input)`, `AnalyzeAsync(input, session, ct)`, `AnalyzeAsync(input, language, ct)`, `AnalyzeAsync(input, language, session, ct)`.
 
-### YAML Esterno e Dinamico
+### External and Dynamic YAML
 
 ```csharp
-// Carica regole da file (si aggiungono a quelle embedded)
+// Load rules from a file (added to the embedded ones)
 analyzer.LoadCustomYaml("path/to/custom-rules.yaml");
 
-// Carica regole da stringa YAML (utile per DB/config remota)
+// Load rules from a YAML string (useful for DB/remote config)
 var yaml = @"
 version: ""2.0""
 countries:
@@ -298,9 +358,9 @@ countries:
 analyzer.LoadCustomYamlFromString(yaml);
 ```
 
-### Compliance Tags da YAML
+### Compliance Tags from YAML
 
-I flag di compliance (`compliance_tags` nel YAML) vengono automaticamente raccolti e uniti a quelli hardcodati. Puoi aggiungere tag personalizzati per ogni regola:
+Compliance flags (`compliance_tags` in the YAML) are automatically collected and merged with the hardcoded ones. You can add custom tags per rule:
 
 ```yaml
 - category: "MyCustomID"
@@ -309,15 +369,15 @@ I flag di compliance (`compliance_tags` nel YAML) vengono automaticamente raccol
   compliance_tags: ["GDPR Art.4(1)", "Internal Policy #42"]
 ```
 
-### JSON Config e Hot-Reload
+### JSON Config and Hot-Reload
 
-Oltre a YAML, supportiamo configurazione JSON con hot-reload automatico:
+Besides YAML, JSON configuration with automatic hot-reload is also supported:
 
 ```csharp
-// Carica regole da file JSON
+// Load rules from a JSON file
 analyzer.LoadCustomJson("path/to/custom-rules.json");
 
-// Carica da stringa
+// Load from a string
 var json = @"{
   ""version"": ""2.0"",
   ""countries"": [
@@ -328,57 +388,57 @@ var json = @"{
 }";
 analyzer.LoadCustomJsonFromString(json);
 
-// Hot-reload: osserva il file e ricarica automaticamente
+// Hot-reload: watch the file and reload automatically
 analyzer.WatchConfig("path/to/custom-rules.json");
 
-// Evento notificato dopo ogni ricarica
-analyzer.ConfigReloaded += (s, e) => Console.WriteLine("⚡ Config ricaricata!");
+// Event fired after every reload
+analyzer.ConfigReloaded += (s, e) => Console.WriteLine("⚡ Config reloaded!");
 
-// Ferma il watcher
+// Stop the watcher
 analyzer.StopWatching();
 ```
 
-### Validazione Regole
+### Rule Validation
 
-Verifica che tutte le regole caricate siano valide (nessuna eccezione in fase di match):
+Check that all loaded rules are valid (no exceptions during matching):
 
 ```csharp
 if (analyzer.ValidateRules())
-    Console.WriteLine("✅ Tutte le regole sono valide");
+    Console.WriteLine("✅ All rules are valid");
 else
-    Console.WriteLine("❌ Regole invalide trovate");
+    Console.WriteLine("❌ Invalid rules found");
 ```
 
-### Integrazione ILogger
+### ILogger Integration
 
-Collega un logger per diagnostic durante analisi e configurazione:
+Attach a logger for diagnostics during analysis and configuration:
 
 ```csharp
 analyzer.Logger = myLogger;  // ILogger<PrivacyAnalyzer>
-// Eventi loggati: categorie rilevate, score alto, load configurazioni
+// Logged events: detected categories, high scores, configuration loads
 ```
 
-### Session Export e Persistence
+### Session Export and Persistence
 
-Esporta e importa sessioni come JSON per salvare/ripristinare lo stato tra richieste:
+Export and import sessions as JSON to save/restore state across requests:
 
 ```csharp
 var session = new PrivacySession();
 session.AddEntry("Email", "test@example.com");
 
-// Esporta
+// Export
 string json = session.ToJson();
 
-// Ricostruisci
+// Reconstruct
 var restored = PrivacySession.FromJson(json);
 
-// Importa in sessione esistente
+// Import into an existing session
 existingSession.ImportFromJson(json);
 ```
 
 ### IReadOnlySession
 
-API read-only sicura per esposizione pubblica:
+A safe read-only API for public exposure:
 
 ```csharp
 IReadOnlySession readOnly = session;
@@ -389,79 +449,91 @@ string text = readOnly.Restore(aiResponse);
 
 ## 🔐 Compliance & GDPR
 
-`PrivacyAnalysisResult.ComplianceFlags` combina automaticamente:
-- **YAML** — `compliance_tags` definiti per ogni regola in `rules.yaml`
-- **Hardcoded** — Mappatura automatica per categorie note (GDPR, PCI-DSS, NIST 800-53)
+`PrivacyAnalysisResult.ComplianceFlags` automatically combines:
+- **YAML** — `compliance_tags` defined for each rule in `rules.yaml`
+- **Hardcoded** — automatic mapping for known categories (GDPR, EU AI Act, NIS2, PCI-DSS, NIST 800-53)
 
 ```csharp
 if (result.ComplianceFlags.Contains("GDPR Art.4(1)"))
 {
-    // Logica per base giuridica, DPIA, minimizzazione
+    // Logic for legal basis, DPIA, minimization
 }
 if (result.ComplianceFlags.Contains("PCI-DSS"))
 {
-    // Crittografia, segmentazione rete, audit
+    // Encryption, network segmentation, audit
 }
 ```
 
-| **Componente**            | **Descrizione**                                                 | ****        | ****   |
-|---------------------------|-----------------------------------------------------------------|-------------|--------|
-| **BaseScore**             | Somma dei pesi delle regole matchate × validazione × confidence |             |        |
-| **CorrelationMultiplier** | 1.0 + (categorie_distinte × 0.12)"                              | max 2.2"    |        |
-| **ContextBoost**          | +0.12 per ogni PII vicino a parole trigger (""password:"        | "riservato" | ecc.)" |
-| **DensityBonus**          | Penalizza testi brevi con molti PII (rischio fuga dati)         |             |        |
+### Score Components
 
+| **Component**            | **Description**                                                  | **Notes**       |
+|---------------------------|-------------------------------------------------------------------|-----------------|
+| **BaseScore**             | Sum of matched-rule weights × validation × confidence             |                 |
+| **CorrelationMultiplier** | 1.0 + (distinct categories × 0.12)                                 | capped at 2.2   |
+| **ContextBoost**          | +0.12 for each PII near a trigger word (`"password:"`, `"confidential"`, etc.) |     |
+| **DensityBonus**          | Penalizes short texts containing many PII (data-leak risk)         |                 |
 
-Soglie di Rischio:
+Risk Thresholds:
 
-| **Score**  | **Livello**         | **Azione Consigliata**                 |
-|------------|---------------------|----------------------------------------|
-| **0-15**   | ✅ Sicuro (AI Ready) | Invio diretto a LLM                   |
-| **16-35**  | ⚠️ Basso            | Logging + monitoraggio                 |
-| **36-60**  | ⛔ Medio             | Anonimizzazione obbligatoria          |
-| **61-85**  | 🚨 Alto             | Sandbox isolata o dati sintetici       |
-| **86-100** | 🛑 Critico          | Blocco assoluto, processing on-premise |
+| **Score**  | **Level**            | **Recommended Action**                 |
+|------------|----------------------|-----------------------------------------|
+| **0-15**   | ✅ Safe (AI Ready)    | Direct submission to the LLM            |
+| **16-35**  | ⚠️ Low               | Logging + monitoring                    |
+| **36-60**  | ⛔ Medium             | Anonymization mandatory                 |
+| **61-85**  | 🚨 High              | Isolated sandbox or synthetic data      |
+| **86-100** | 🛑 Critical          | Absolute block, on-premise processing   |
 
-
-# ⚠️ Disclaimer: Questa libreria è uno strumento tecnico di supporto. Non sostituisce una Valutazione d'Impatto sulla Protezione dei Dati (DPIA) né il parere di un DPO. La conformità GDPR richiede valutazioni contestuali, basi giuridiche e processi organizzativi.
+# ⚠️ Disclaimer: This library is a technical support tool. It does not replace a Data Protection Impact Assessment (DPIA) or the advice of a DPO. GDPR, AI Act, and NIS2 compliance require contextual assessments, legal bases, and organizational processes that no library can substitute for.
 
 # 🧪 Testing & Performance
 
 ```csharp
-// Benchmark rapido
+// Quick benchmark
 var analyzer = new PrivacyAnalyzer();
 var sw = System.Diagnostics.Stopwatch.StartNew();
 
 for (int i = 0; i < 10_000; i++)
 {
-    analyzer.Analyze("Testo con email test@example.com e IBAN DE89370400440532013000");
+    analyzer.Analyze("Text with email test@example.com and IBAN DE89370400440532013000");
 }
 
 sw.Stop();
-Console.WriteLine($"⚡ 10k analisi in {sw.ElapsedMilliseconds}ms ({10_000.0 / sw.ElapsedMilliseconds:F1} req/sec)");
+Console.WriteLine($"⚡ 10k analyses in {sw.ElapsedMilliseconds}ms ({10_000.0 / sw.ElapsedMilliseconds:F1} req/sec)");
 ```
 
 # 🤝 Contributing
 
-Fork il repo
-Crea un branch per la tua feature (git checkout -b feature/nuovo-paese)
-Aggiungi regole in rules.yaml + validatori in ValidatorRegistry.cs
-Aggiungi test in tests/ (xUnit)
-PR con descrizione chiara e esempi
-🌍 Per aggiungere un nuovo paese: segui lo schema YAML esistente, implementa il validatore (se necessario) e aggiungi la voce nella tabella del README.
+Fork the repo
+Create a branch for your feature (git checkout -b feature/new-country)
+Add rules in rules.yaml + validators in ValidatorRegistry.cs
+Add tests in tests/ (xUnit)
+Submit a PR with a clear description and examples
+🌍 To add a new country: follow the existing YAML schema, implement a validator (if needed), and add an entry to the README table.
 
 # 📄 License
 
-Distribuito sotto licenza MIT. Vedi LICENSE per dettagli.
+Distributed under the MIT license. See LICENSE for details.
 
 # 🆘 Support & Roadmap
 
-| **Versione** | **Feature**                          | **Stato**      |
+| **Version** | **Feature**                          | **Status**      |
 |--------------|--------------------------------------|----------------|
-| **1.0**      | 27 paesi UE, masking, YAML embedded  | ✅ Release      |
-| **1.1**      | Session Restore, placeholder univoci, ripristino lato client | ✅ Release |
-| **1.2**      | JSON config, hot-reload, async API, batch analyze, session export, ILogger, netstandard2.0, whitelist lifecycle, validatori dinamici, regex cache, ValidateRules, IReadOnlySession, CHANGELOG | ✅ Release |
-| **1.3**      | Configurazione YAML remota, session streaming, dashboard CLI | 🔄 Pianificazione |
+| **1.0**      | 27 EU countries, masking, embedded YAML  | ✅ Released      |
+| **1.1**      | Session Restore, unique placeholders, client-side restoration | ✅ Released |
+| **1.2**      | JSON config, hot-reload, async API, batch analyze, session export, ILogger, netstandard2.0, whitelist lifecycle, dynamic validators, regex cache, ValidateRules, IReadOnlySession, CHANGELOG | ✅ Released |
+| **1.2.2**    | 5 new countries (UK, CH, CN, RU, UA), AI Act/NIS2 compliance flags, PrivacySessionManager, AiTransparencyNotice, ChatIntentRouter, Demo dashboard | ✅ Released |
+| **1.3**      | Remote YAML configuration, session streaming | 🔄 Planned |
 
+## Technology Partnership
 
-# 🛡️ Proteggi i dati, abilita l'AI. Compliance by design.
+<img src="https://www.digitalsolutions.it/img/partners/novaroutelogo.png" alt="NovaRouteAI" height="180" style="max-width: 100%; height: auto; min-height: 180px; max-height: 190px;">
+
+**[NovaRouteAI](https://novarouteai.com/?ref=synthelion)** — Build with Chinese AI models through one simple API.
+
+NovaRouteAI helps developers and AI SaaS teams test, compare, and run models like DeepSeek, Qwen, Doubao, Kimi, and GLM without managing multiple provider accounts. Start with test credits and optimize your cost per successful task.
+
+[Click here to know NovaRouteAI](https://novarouteai.com/?ref=synthelion)
+
+---
+
+# 🛡️ Protect data, enable AI. Compliance by design.

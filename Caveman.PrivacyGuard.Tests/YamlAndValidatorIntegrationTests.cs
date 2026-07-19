@@ -5,7 +5,7 @@
 // https://github.com/francescopaolopassaro/Caveman.PrivacyGuard
 //
 // Enterprise-grade PII & Privacy Analyzer for AI/LLM workflows.
-// Detects, scores, and auto-masks sensitive data across 27 EU countries with 
+// Detects, scores, and auto-masks sensitive data across 32 countries (27 EU + UK, Switzerland, China, Russia, Ukraine) with 
 // GDPR/PCI-DSS/NIST compliance flags, multi-language support, and YAML-driven 
 // extensible rules. Thread-safe, embedded resources, zero external dependencies.
 // ------------------------------------------------------------------------------
@@ -18,8 +18,8 @@ namespace Caveman.PrivacyGuard.Tests;
 [TestFixture]
 public class YamlAndValidatorIntegrationTests
 {
-    private RulesDocument _yamlDoc;
-    private PrivacyAnalyzer _analyzer;
+    private RulesDocument _yamlDoc = null!;
+    private PrivacyAnalyzer _analyzer = null!;
 
     [OneTimeSetUp]
     public void GlobalSetup()
@@ -27,23 +27,23 @@ public class YamlAndValidatorIntegrationTests
         // 1. Carica YAML direttamente per testarne la struttura
         var assembly = typeof(PrivacyAnalyzer).Assembly;
         var resource = assembly.GetManifestResourceStream($"{assembly.GetName().Name}.rules.yaml");
-        if (resource == null) Assert.Fail("Embedded rules.yaml non trovato.");
+        if (resource == null) Assert.Fail("Embedded rules.yaml not found.");
 
         var deserializer = new DeserializerBuilder().Build();
-        _yamlDoc = deserializer.Deserialize<RulesDocument>(new StreamReader(resource));
+        _yamlDoc = deserializer.Deserialize<RulesDocument>(new StreamReader(resource!));
 
-        // 2. Inizializza analyzer
+        // 2. Initialize analyzer
         _analyzer = new PrivacyAnalyzer();
     }
 
-    #region 📜 1. Validazione Struttura YAML
+    #region 📜 1. YAML Structure Validation
     [Test]
     public void Yaml_HasValidStructure()
     {
         Assert.That(_yamlDoc.Version, Is.EqualTo("2.0"));
         Assert.That(_yamlDoc.Countries, Is.Not.Null.And.Not.Empty);
         Assert.That(_yamlDoc.GlobalContextKeywords, Is.Not.Null.And.Not.Empty);
-        Assert.That(_yamlDoc.Countries.Count, Is.GreaterThanOrEqualTo(27), "Devono esserci almeno 27 paesi UE");
+        Assert.That(_yamlDoc.Countries.Count, Is.GreaterThanOrEqualTo(27), "There must be at least 27 EU countries");
     }
 
     [Test]
@@ -51,12 +51,12 @@ public class YamlAndValidatorIntegrationTests
     {
         foreach (var country in _yamlDoc.Countries)
         {
-            Assert.That(country.Code, Is.Not.Null.And.Not.Empty, $"Paese senza codice");
+            Assert.That(country.Code, Is.Not.Null.And.Not.Empty, $"Country without a code");
             foreach (var rule in country.Rules)
             {
-                Assert.That(rule.Category, Is.Not.Null.And.Not.Empty, $"Regola in {country.Code} senza categoria");
-                Assert.That(rule.Pattern, Is.Not.Null.And.Not.Empty, $"Regola '{rule.Category}' in {country.Code} senza pattern");
-                Assert.That(rule.BaseWeight, Is.GreaterThan(0), $"Peso per '{rule.Category}' deve essere > 0");
+                Assert.That(rule.Category, Is.Not.Null.And.Not.Empty, $"Rule in {country.Code} without a category");
+                Assert.That(rule.Pattern, Is.Not.Null.And.Not.Empty, $"Rule '{rule.Category}' in {country.Code} without a pattern");
+                Assert.That(rule.BaseWeight, Is.GreaterThan(0), $"Weight for '{rule.Category}' must be > 0");
             }
         }
     }
@@ -70,11 +70,11 @@ public class YamlAndValidatorIntegrationTests
             if (!string.IsNullOrEmpty(rule.ValidatorName) && !ValidatorRegistry.TryGet(rule.ValidatorName, out _))
                 missing.Add($"{rule.Category} ({rule.ValidatorName})");
         }
-        Assert.That(missing, Is.Empty, $"Validatori YAML non trovati nel registry: {string.Join(", ", missing)}");
+        Assert.That(missing, Is.Empty, $"YAML validators not found in the registry: {string.Join(", ", missing)}");
     }
     #endregion
 
-    #region 🔢 2. Test Diretti Validatori (Logica Algoritmica)
+    #region 🔢 2. Direct Validator Tests (Algorithmic Logic)
     private static IEnumerable<TestCaseData> ValidatorTestCases()
     {
         yield return new TestCaseData("IBAN", "DE89370400440532013000", "DE00000000000000000000");
@@ -101,23 +101,31 @@ public class YamlAndValidatorIntegrationTests
         yield return new TestCaseData("IK_EE", "38501010002", "38501010000"); 
         yield return new TestCaseData("STEUER_ID_DE", "12345678901", "12345678900");
         yield return new TestCaseData("NN_BE", "80010100107", "80010100170");
-
+        yield return new TestCaseData("NINO_GB", "AB123456C", "DA123456C");
+        yield return new TestCaseData("AHV_CH", "756.1234.5678.97", "756.1234.5678.98");
+        yield return new TestCaseData("ID_CN", "110105198001011238", "110105198001011230");
+        yield return new TestCaseData("INN_RU", "500100732259", "500100732250");
+        yield return new TestCaseData("IDCARD_DE", "L12345673", "L12345670");
+        yield return new TestCaseData("RNOKPP_UA", "3004567899", "3004567890");
 
     }
     [TestCaseSource(nameof(ValidatorTestCases))]
 
     public void Validator_LogiWorks_ValidAndInvalid(string validatorName, string validInput, string invalidInput)
     {
-        if (!ValidatorRegistry.TryGet(validatorName, out var validator))
-            Assert.Fail($"Validator '{validatorName}' non trovato.");
+        if (!ValidatorRegistry.TryGet(validatorName, out var validator) || validator is null)
+        {
+            Assert.Fail($"Validator '{validatorName}' not found.");
+            return;
+        }
 
-        Assert.That(validator(validInput), Is.True, $"{validatorName} dovrebbe validare '{validInput}'");
-        Assert.That(validator(invalidInput), Is.False, $"{validatorName} dovrebbe rifiutare '{invalidInput}'");
-   
+        Assert.That(validator(validInput), Is.True, $"{validatorName} should validate '{validInput}'");
+        Assert.That(validator(invalidInput), Is.False, $"{validatorName} should reject '{invalidInput}'");
+
     }
     #endregion
 
-    #region 🌍 3. Test Integrazione Regex + Analyzer (Per Paese)
+    #region 🌍 3. Regex + Analyzer Integration Tests (Per Country)
     private static IEnumerable<TestCaseData> CountryRuleTestCases()
     {
 
@@ -161,6 +169,12 @@ public class YamlAndValidatorIntegrationTests
         yield return new TestCaseData("Employee / Badge ID", "Personalnummer: HR-9876", "Personalnummer: abc");
         yield return new TestCaseData("Minor Data (<16)", "mineur de 14 ans", "majeur");
         yield return new TestCaseData("Minor Data (<16)", "menor de 15 años", "adulto");
+        yield return new TestCaseData("UK National Insurance Number (NINO)", "AB123456C", "DA123456C");
+        yield return new TestCaseData("Swiss AHV/AVS Number", "756.1234.5678.97", "756.1234.5678.98");
+        yield return new TestCaseData("Chinese Resident ID Number", "110105198001011238", "110105198001011230");
+        yield return new TestCaseData("Russian Taxpayer ID (INN)", "500100732259", "not-an-inn");
+        yield return new TestCaseData("German ID Card", "L12345673", "not-an-idcard");
+        yield return new TestCaseData("Ukrainian Taxpayer Number (RNOKPP)", "3004567899", "not-an-rnokpp");
     }
 
     [TestCaseSource(nameof(CountryRuleTestCases))]
@@ -170,12 +184,12 @@ public class YamlAndValidatorIntegrationTests
         var validRes = _analyzer.Analyze($"ID: {validInput}");
 
          Assert.That(validRes.DetectedCategories, Does.Contain(category),
-            $"Il testo '{validInput}' dovrebbe essere rilevato come '{category}'");
+            $"Text '{validInput}' should be detected as '{category}'");
 
     }
     #endregion
 
-    #region 🛡️ 4. Test Mascheramento & Soglie
+    #region 🛡️ 4. Masking & Threshold Tests
     [Test]
     public void Masking_Replaces_All_Detected_PII()
     {
@@ -195,8 +209,98 @@ public class YamlAndValidatorIntegrationTests
         var low = _analyzer.Analyze("Nessun dato sensibile qui.");
         var high = _analyzer.Analyze("CF: RSSMRA80A01H501U IBAN: DE89370400440532013000 email: a@b.com tel: +393331234567");
 
-        Assert.That(high.Score, Is.GreaterThan(low.Score + 30), "Testo con PII multipli deve avere score significativamente più alto");
-        Assert.That(low.IsSafeForAI, Is.True.Or.False, "Il testo pulito ha score basso (≤15) o leggermente sopra per keyword generiche");
+        Assert.That(high.Score, Is.GreaterThan(low.Score + 30), "Text with multiple PII must have a significantly higher score");
+        Assert.That(low.IsSafeForAI, Is.True.Or.False, "Clean text has a low score (≤15) or slightly above due to generic keywords");
+    }
+    #endregion
+
+    #region 🌐 5. Cross-Country Regression (new GB/CH/CN/RU validators)
+    [Test]
+    public void NewCountries_DoNotConflict_WithExistingRules()
+    {
+        // Text with PII from 8 different countries (4 pre-existing + 4 new) in a single block:
+        // verifies that every category is detected without pattern/validator collisions.
+        var text = "IT-CF: RSSMRA85T10H501Z | DE-IBAN: DE89370400440532013000 | " +
+                    "UK-NINO: AB123456C | CH-AHV: 756.1234.5678.97 | " +
+                    "CN-ID: 110105198001011238 | RU-INN: 500100732259";
+
+        var result = _analyzer.Analyze(text);
+
+        Assert.That(result.DetectedCategories, Does.Contain("Italian Tax Code (CF)"));
+        Assert.That(result.DetectedCategories, Does.Contain("IBAN"));
+        Assert.That(result.DetectedCategories, Does.Contain("UK National Insurance Number (NINO)"));
+        Assert.That(result.DetectedCategories, Does.Contain("Swiss AHV/AVS Number"));
+        Assert.That(result.DetectedCategories, Does.Contain("Chinese Resident ID Number"));
+        Assert.That(result.DetectedCategories, Does.Contain("Russian Taxpayer ID (INN)"));
+        Assert.That(_analyzer.ValidateRules(), Is.True, "All rules (including the new ones) must remain valid");
+    }
+
+    [Test]
+    public void SwissAHV_DoesNotMisfire_AsLuxembourgId()
+    {
+        // The Swiss dotted format (756.1234.5678.97) must never match the
+        // Luxembourg 13-contiguous-digit pattern (\d{13}).
+        var result = _analyzer.Analyze("AHV: 756.1234.5678.97");
+        Assert.That(result.DetectedCategories, Does.Contain("Swiss AHV/AVS Number"));
+        Assert.That(result.DetectedCategories, Does.Not.Contain("Luxembourg National ID"));
+    }
+
+    [Test]
+    public void ChineseId_DoesNotMisfire_AsOtherNumericRules()
+    {
+        var result = _analyzer.Analyze("身份证: 110105198001011238");
+        Assert.That(result.DetectedCategories, Does.Contain("Chinese Resident ID Number"));
+        Assert.That(result.DetectedCategories, Does.Not.Contain("Luxembourg National ID"),
+            "18 digits must not match the 13-digit Luxembourg rule");
+    }
+
+    [Test]
+    public void RussianInn_RejectsBadChecksum_EvenWhenCorrectLength()
+    {
+        // 12 digits of the correct length but an invalid checksum: must not validate.
+        Assert.That(ValidatorRegistry.TryGet("INN_RU", out var validator) && validator is not null);
+        Assert.That(validator!("500100732250"), Is.False);
+    }
+
+    [Test]
+    public void GermanIdCard_DoesNotFalsePositive_OnSpanishNifOrUkNino()
+    {
+        // Regression: before the IDCARD_DE validator was introduced, the generic
+        // German ID Card pattern (9 alphanumeric characters) matched ANY similar string,
+        // including a Spanish NIF (12345678Z) or a UK NINO (AB123456C).
+        var nif = _analyzer.Analyze("NIF: 12345678Z");
+        Assert.That(nif.DetectedCategories, Does.Not.Contain("German ID Card"));
+        Assert.That(nif.DetectedCategories, Does.Contain("Spanish Tax/ID Number (NIF/NIE)"));
+
+        var nino = _analyzer.Analyze("NINO: AB123456C");
+        Assert.That(nino.DetectedCategories, Does.Not.Contain("German ID Card"));
+        Assert.That(nino.DetectedCategories, Does.Contain("UK National Insurance Number (NINO)"));
+    }
+
+    [Test]
+    public void GermanIdCard_StillDetects_ValidRealisticNumber()
+    {
+        var result = _analyzer.Analyze("Personalausweis: L12345673");
+        Assert.That(result.DetectedCategories, Does.Contain("German ID Card"));
+    }
+
+    [Test]
+    public void AllValidatorNames_InNewCountryRules_ResolveToRegisteredValidators()
+    {
+        var newCategories = new[]
+        {
+            "UK National Insurance Number (NINO)", "Swiss AHV/AVS Number",
+            "Chinese Resident ID Number", "Russian Taxpayer ID (INN)"
+        };
+        foreach (var country in _yamlDoc.Countries)
+            foreach (var rule in country.Rules)
+                if (newCategories.Contains(rule.Category))
+                {
+                    Assert.That(rule.ValidatorName, Is.Not.Null.And.Not.Empty,
+                        $"'{rule.Category}' should have an algorithmic validator_name, not just a regex");
+                    Assert.That(ValidatorRegistry.TryGet(rule.ValidatorName!, out var v) && v is not null, Is.True,
+                        $"validator_name '{rule.ValidatorName}' for '{rule.Category}' is not registered in ValidatorRegistry");
+                }
     }
     #endregion
 }

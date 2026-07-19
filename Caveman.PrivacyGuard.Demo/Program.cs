@@ -5,7 +5,7 @@
 // https://github.com/francescopaolopassaro/Caveman.PrivacyGuard
 //
 // Enterprise-grade PII & Privacy Analyzer for AI/LLM workflows.
-// Detects, scores, and auto-masks sensitive data across 27 EU countries with 
+// Detects, scores, and auto-masks sensitive data across 32 countries (27 EU + UK, Switzerland, China, Russia, Ukraine) with 
 // GDPR/PCI-DSS/NIST compliance flags, multi-language support, and YAML-driven 
 // extensible rules. Thread-safe, embedded resources, zero external dependencies.
 // ------------------------------------------------------------------------------
@@ -39,6 +39,7 @@ namespace Caveman.PrivacyGuard.Demo;
 internal static class Program
 {
     private static readonly PrivacyAnalyzer _analyzer = new() { EnableAutoMasking = true };
+    private static readonly AiTransparencyNotice _aiNotice = new() { Enabled = true, Language = "en" };
     private static PrivacySession? _session;
     private static bool _running = true;
 
@@ -118,6 +119,13 @@ internal static class Program
             if (input.Trim().Equals("/roundtrip", StringComparison.OrdinalIgnoreCase))
             {
                 ShowRoundtrip();
+                ShowDivider();
+                continue;
+            }
+
+            if (input.Trim().Equals("/dashboard", StringComparison.OrdinalIgnoreCase))
+            {
+                ShowDashboard();
                 ShowDivider();
                 continue;
             }
@@ -237,9 +245,9 @@ internal static class Program
         Console.ForegroundColor = ConsoleColor.Cyan;
         Console.WriteLine(@"
   ╔══════════════════════════════════════════════════════════╗
-  ║  🛡️  CAVEMAN.PRIVACYGUARD v1.2.1                        ║
-  ║  Enterprise EU PII & Privacy Analyzer for AI/LLM         ║
-  ║  GDPR • PCI-DSS • NIST • 27 Countries • Multi-Language   ║
+  ║  🛡️  CAVEMAN.PRIVACYGUARD v1.2.2                        ║
+  ║  Enterprise PII & Privacy Analyzer for AI/LLM            ║
+  ║  GDPR • PCI-DSS • NIST • 32 Countries • Multi-Language   ║
   ╚══════════════════════════════════════════════════════════╝
 ");
         Console.ResetColor();
@@ -248,6 +256,15 @@ internal static class Program
         Console.WriteLine("  License: MIT");
         Console.WriteLine("  Source: https://github.com/francescopaolopassaro/Caveman.PrivacyGuard");
         Console.ResetColor();
+
+        var notice = _aiNotice.GetMessage();
+        if (!string.IsNullOrEmpty(notice))
+        {
+            Console.ForegroundColor = ConsoleColor.DarkCyan;
+            Console.WriteLine($"\n  ℹ️  {notice}");
+            Console.ResetColor();
+        }
+
         ShowDivider();
     }
 
@@ -264,6 +281,7 @@ internal static class Program
         Console.WriteLine("🔹 Type '/validate' to validate all loaded rules.");
         Console.WriteLine("🔹 Type '/restore' to restore placeholders from an AI response.");
         Console.WriteLine("🔹 Type '/roundtrip' for a full mask → AI → restore demo.");
+        Console.WriteLine("🔹 Type '/dashboard' for aggregate PII stats over a multi-country sample batch.");
         Console.WriteLine("🔹 Press ESC anytime to exit.");
         Console.WriteLine("🔹 Type 'exit' or 'quit' to close gracefully.");
         Console.ResetColor();
@@ -508,6 +526,57 @@ internal static class Program
         Console.ForegroundColor = ConsoleColor.Cyan;
         Console.WriteLine($"✅ Round-trip completato: {result.Session.Count} placeholder(s) → {result.Session.Count} ripristino(i)");
         Console.ResetColor();
+    }
+
+    private static readonly string[] _dashboardSampleTexts =
+    {
+        "Cliente: Mario Rossi, CF: RSSMRA80A01H501U, email mario.rossi@example.it, IBAN IT60X0542811101000000123456",
+        "Kunde: Hans Müller, Steuer-ID: 12345678901, IBAN DE89370400440532013000, Personalausweis L1234567",
+        "Client: Jean Dupont, NIR: 185017500123411, SIRET 12345678900012, email jean.dupont@exemple.fr",
+        "Cliente: Juan García, NIF: 12345678Z, IBAN ES9121000418450200051332",
+        "Employee: Jane Smith, NINO: AB123456C, email jane.smith@example.co.uk",
+        "Kunde: Peter Meier, AHV-Nummer: 756.1234.5678.97",
+        "客户：张伟，身份证：110105198001011238",
+        "Клиент: Иван Иванов, ИНН: 500100732259",
+        "Testo pulito senza alcun dato sensibile, solo una frase generica di prova."
+    };
+
+    private static void ShowDashboard()
+    {
+        Console.ForegroundColor = ConsoleColor.Cyan;
+        Console.WriteLine($"📊 Batch Dashboard — {_dashboardSampleTexts.Length} sample texts across 9 countries");
+        Console.ResetColor();
+        Console.WriteLine();
+
+        var results = _analyzer.AnalyzeBatch(_dashboardSampleTexts);
+
+        var categoryCounts = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        var riskCounts = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        foreach (var r in results)
+        {
+            foreach (var cat in r.DetectedCategories)
+                categoryCounts[cat] = categoryCounts.GetValueOrDefault(cat) + 1;
+            riskCounts[r.RiskLevel] = riskCounts.GetValueOrDefault(r.RiskLevel) + 1;
+        }
+
+        var avgScore = results.Count > 0 ? results.Average(r => r.Score) : 0;
+        var safeCount = results.Count(r => r.IsSafeForAI);
+
+        Console.ForegroundColor = ConsoleColor.Yellow;
+        Console.WriteLine($"⚙️  Average score: {avgScore:F1}/100   |   Safe for AI: {safeCount}/{results.Count}");
+        Console.ResetColor();
+
+        Console.ForegroundColor = ConsoleColor.Magenta;
+        Console.WriteLine("\n🚦 Risk level distribution:");
+        Console.ResetColor();
+        foreach (var (level, count) in riskCounts.OrderByDescending(kv => kv.Value))
+            Console.WriteLine($"   • {level}: {count}");
+
+        Console.ForegroundColor = ConsoleColor.Green;
+        Console.WriteLine("\n🔍 Most detected categories:");
+        Console.ResetColor();
+        foreach (var (cat, count) in categoryCounts.OrderByDescending(kv => kv.Value).Take(10))
+            Console.WriteLine($"   • {cat}: {count}");
     }
 
     private static string? _lastMasked;

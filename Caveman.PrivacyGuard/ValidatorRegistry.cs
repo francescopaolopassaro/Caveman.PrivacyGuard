@@ -5,7 +5,7 @@
 // https://github.com/francescopaolopassaro/Caveman.PrivacyGuard
 //
 // Enterprise-grade PII & Privacy Analyzer for AI/LLM workflows.
-// Detects, scores, and auto-masks sensitive data across 27 EU countries with 
+// Detects, scores, and auto-masks sensitive data across 32 countries (27 EU + UK, Switzerland, China, Russia, Ukraine) with 
 // GDPR/PCI-DSS/NIST compliance flags, multi-language support, and YAML-driven 
 // extensible rules. Thread-safe, embedded resources, zero external dependencies.
 // ------------------------------------------------------------------------------
@@ -30,7 +30,10 @@ public static class ValidatorRegistry
         { "EGN_BG", V.ValidateEGN_BG }, { "OIB_HR", V.ValidateOIB_HR },
         { "EMSO_SI", V.ValidateEMSO_SI }, { "AK_LT", V.ValidateAK_LT },
         { "PK_LV", V.ValidatePK_LV }, { "IK_EE", V.ValidateIK_EE },
-        { "STEUER_ID_DE", V.ValidateSteuerId_DE }, { "NN_BE", V.ValidateNN_BE }
+        { "STEUER_ID_DE", V.ValidateSteuerId_DE }, { "NN_BE", V.ValidateNN_BE },
+        { "NINO_GB", V.ValidateNINO_GB }, { "AHV_CH", V.ValidateAHV_CH },
+        { "ID_CN", V.ValidateID_CN }, { "INN_RU", V.ValidateINN_RU },
+        { "IDCARD_DE", V.ValidateIDCard_DE }, { "RNOKPP_UA", V.ValidateRNOKPP_UA }
     };
 
     /// <summary>Registers a custom validator function for the given name.</summary>
@@ -59,6 +62,9 @@ public static class ValidatorRegistry
         _validators["EMSO_SI"] = V.ValidateEMSO_SI; _validators["AK_LT"] = V.ValidateAK_LT;
         _validators["PK_LV"] = V.ValidatePK_LV; _validators["IK_EE"] = V.ValidateIK_EE;
         _validators["STEUER_ID_DE"] = V.ValidateSteuerId_DE; _validators["NN_BE"] = V.ValidateNN_BE;
+        _validators["NINO_GB"] = V.ValidateNINO_GB; _validators["AHV_CH"] = V.ValidateAHV_CH;
+        _validators["ID_CN"] = V.ValidateID_CN; _validators["INN_RU"] = V.ValidateINN_RU;
+        _validators["IDCARD_DE"] = V.ValidateIDCard_DE; _validators["RNOKPP_UA"] = V.ValidateRNOKPP_UA;
     }
 
     private static class V
@@ -339,6 +345,83 @@ public static class ValidatorRegistry
             long first9 = long.Parse(s.Substring(0, 9));
             int check = int.Parse(s.Substring(9, 2));
             return (97 - (first9 % 97)) % 100 == check;
+        }
+
+        internal static bool ValidateNINO_GB(string s)
+        {
+            var clean = s.Replace(" ", "").ToUpperInvariant();
+            if (!Regex.IsMatch(clean, @"^[A-Z]{2}\d{6}[A-D]$")) return false;
+            string prefix = clean.Substring(0, 2);
+            if ("BG GB NK KN TN NT ZZ".Contains(prefix)) return false;
+            if ("DFIQUV".IndexOf(clean[0]) >= 0) return false;
+            if ("DFIOQUV".IndexOf(clean[1]) >= 0) return false;
+            return true;
+        }
+
+        internal static bool ValidateAHV_CH(string s)
+        {
+            var clean = s.Replace(".", "").Replace(" ", "");
+            if (clean.Length != 13 || !clean.All(char.IsDigit) || !clean.StartsWith("756")) return false;
+            int sum = 0;
+            for (int i = 0; i < 12; i++)
+            {
+                int d = clean[i] - '0';
+                sum += (i % 2 == 0) ? d : d * 3;
+            }
+            int check = (10 - (sum % 10)) % 10;
+            return check == clean[12] - '0';
+        }
+
+        internal static bool ValidateID_CN(string s)
+        {
+            var clean = s.ToUpperInvariant();
+            if (clean.Length != 18 || !clean.Substring(0, 17).All(char.IsDigit)) return false;
+            if (clean[17] != 'X' && !char.IsDigit(clean[17])) return false;
+            int[] w = { 7, 9, 10, 5, 8, 4, 2, 1, 6, 3, 7, 9, 10, 5, 8, 4, 2 };
+            int sum = 0;
+            for (int i = 0; i < 17; i++) sum += (clean[i] - '0') * w[i];
+            const string checkChars = "10X98765432";
+            return checkChars[sum % 11] == clean[17];
+        }
+
+        internal static bool ValidateINN_RU(string s)
+        {
+            if (s.Length != 12 || !s.All(char.IsDigit)) return false;
+            int[] w1 = { 7, 2, 4, 10, 3, 5, 9, 4, 6, 8 };
+            int[] w2 = { 3, 7, 2, 4, 10, 3, 5, 9, 4, 6, 8 };
+            int sum1 = 0;
+            for (int i = 0; i < 10; i++) sum1 += (s[i] - '0') * w1[i];
+            int c1 = sum1 % 11 % 10;
+            int sum2 = 0;
+            for (int i = 0; i < 11; i++) sum2 += (s[i] - '0') * w2[i];
+            int c2 = sum2 % 11 % 10;
+            return c1 == s[10] - '0' && c2 == s[11] - '0';
+        }
+
+        internal static bool ValidateIDCard_DE(string s)
+        {
+            var c = s.ToUpperInvariant();
+            if (c.Length != 9 || !char.IsDigit(c[8])) return false;
+            int[] w = { 7, 3, 1, 7, 3, 1, 7, 3 };
+            int sum = 0;
+            for (int i = 0; i < 8; i++)
+            {
+                char ch = c[i];
+                if (char.IsDigit(ch)) sum += (ch - '0') * w[i];
+                else if (char.IsLetter(ch)) sum += (ch - 'A' + 10) * w[i];
+                else return false;
+            }
+            return sum % 10 == c[8] - '0';
+        }
+
+        internal static bool ValidateRNOKPP_UA(string s)
+        {
+            if (s.Length != 10 || !s.All(char.IsDigit)) return false;
+            int[] w = { -1, 5, 7, 9, 4, 6, 10, 5, 7 };
+            int sum = 0;
+            for (int i = 0; i < 9; i++) sum += (s[i] - '0') * w[i];
+            int control = ((sum % 11) + 11) % 11 % 10;
+            return control == s[9] - '0';
         }
     }
 }

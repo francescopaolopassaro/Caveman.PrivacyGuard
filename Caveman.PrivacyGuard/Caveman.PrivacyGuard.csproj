@@ -6,10 +6,12 @@
     <Nullable>enable</Nullable>
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
     <PackageId>Caveman.PrivacyGuard</PackageId>
-    <Version>1.2.1</Version>
+    <Version>1.2.2</Version>
     <Authors>Francesco Paolo Passaro</Authors>
-    <Description>Enterprise-grade PII &amp; Privacy Analyzer for AI/LLM workflows. Detects, scores, and auto-masks sensitive data across 27 EU countries with GDPR/PCI-DSS/NIST compliance flags, multi-language support, and YAML-driven extensible rules.</Description>
+    <Description>Enterprise-grade PII &amp; Privacy Analyzer for AI/LLM workflows. Detects, scores, and auto-masks sensitive data across 32 countries (27 EU + UK, Switzerland, China, Russia, Ukraine) with GDPR/AI Act/NIS2/PCI-DSS/NIST compliance flags, multi-session and multi-chatbot support, AI transparency notices, multi-language support, and YAML-driven extensible rules.</Description>
+    <PackageReleaseNotes>1.2.2: NuGet icon restored (caveman-icon.png now packed and referenced via PackageIcon). Added 5 new countries/validators: UK NINO, Swiss AHV/AVS, Chinese Resident ID, Russian INN, Ukrainian RNOKPP - each with a real checksum algorithm, not just regex. Fixed a cross-country false-positive: the German ID Card rule matched any 9-char alphanumeric string (including Spanish NIF and UK NINO); it's now a structurally distinct letter+8-digit pattern with its own checksum validator (IDCARD_DE). Added EU AI Act and NIS2 compliance-flag mappings alongside existing GDPR/PCI-DSS/NIST tags. Added PrivacySessionManager for isolating placeholder sessions across many concurrent conversations (multi-chatbot/AI-gateway use cases). Added AiTransparencyNotice (configurable, localized EN/IT/DE/FR/ES) for AI Act Art.50-style "you're talking to an AI" disclosures, and ChatIntentRouter for routing bot commands before they reach the analyzer. Added a /dashboard command to the Demo for aggregate batch stats. Fixed all nullable-reference build warnings (net8.0 and netstandard2.0 now build with zero warnings). 25 new regression tests (230/230 total).</PackageReleaseNotes>
     <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageIcon>caveman-icon.png</PackageIcon>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
 	<PackageProjectUrl>https://github.com/francescopaolopassaro/Caveman.PrivacyGuard</PackageProjectUrl>
     <RepositoryUrl>https://github.com/francescopaolopassaro/Caveman.PrivacyGuard</RepositoryUrl>
@@ -45,5 +47,6 @@
     <EmbeddedResource Include="rules.yaml" />
     <None Include="README.md" Pack="true" PackagePath="\" />
     <None Include="CHANGELOG.md" Pack="true" PackagePath="\" />
+    <None Include="caveman-icon.png" Pack="true" PackagePath="\" />
   </ItemGroup>
 </Project>

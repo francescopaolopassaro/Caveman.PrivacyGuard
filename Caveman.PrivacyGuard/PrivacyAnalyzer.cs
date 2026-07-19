@@ -5,7 +5,7 @@
 // https://github.com/francescopaolopassaro/Caveman.PrivacyGuard
 //
 // Enterprise-grade PII & Privacy Analyzer for AI/LLM workflows.
-// Detects, scores, and auto-masks sensitive data across 27 EU countries with 
+// Detects, scores, and auto-masks sensitive data across 32 countries (27 EU + UK, Switzerland, China, Russia, Ukraine) with 
 // GDPR/PCI-DSS/NIST compliance flags, multi-language support, and YAML-driven 
 // extensible rules. Thread-safe, embedded resources, zero external dependencies.
 // ------------------------------------------------------------------------------
@@ -14,6 +14,8 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Net.Http;
+using System.Runtime.CompilerServices;
 using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
@@ -81,7 +83,7 @@ public record CompiledRule(
 
 /// <summary>
 /// Enterprise-grade PII &amp; Privacy Analyzer for AI/LLM workflows.
-/// Detects, scores, and auto-masks sensitive data across 27 EU countries with
+/// Detects, scores, and auto-masks sensitive data across 32 countries (27 EU + UK, Switzerland, China, Russia, Ukraine) with
 /// GDPR/PCI-DSS/NIST compliance flags, multi-language support, and YAML-driven
 /// extensible rules. Thread-safe.
 /// </summary>
@@ -316,6 +318,21 @@ public class PrivacyAnalyzer : IDisposable
     public Task<List<PrivacyAnalysisResult>> AnalyzeBatchAsync(IEnumerable<string> inputs, string language, CancellationToken ct = default) =>
         AnalyzeBatchAsync(inputs, language, CurrentSession, ct);
 
+    /// <summary>Streams analysis results one at a time as they're produced, instead of waiting for the whole batch. Uses CurrentSession.</summary>
+    public IAsyncEnumerable<PrivacyAnalysisResult> AnalyzeStreamAsync(IEnumerable<string> inputs, CancellationToken ct = default) =>
+        AnalyzeStreamAsync(inputs, "en", CurrentSession, ct);
+
+    /// <summary>Streams analysis results one at a time as they're produced, with full control over language and session. Useful for progressively showing results in a UI, or for very large batches where materializing the whole list upfront is undesirable.</summary>
+    public async IAsyncEnumerable<PrivacyAnalysisResult> AnalyzeStreamAsync(IEnumerable<string> inputs, string language, PrivacySession? session, [EnumeratorCancellation] CancellationToken ct = default)
+    {
+        ThrowIfDisposed();
+        foreach (var input in inputs)
+        {
+            ct.ThrowIfCancellationRequested();
+            yield return await Task.Run(() => Analyze(input, language, session), ct).ConfigureAwait(false);
+        }
+    }
+
     /// <summary>Analyzes a batch of texts asynchronously with full control over language and session.</summary>
     public Task<List<PrivacyAnalysisResult>> AnalyzeBatchAsync(IEnumerable<string> inputs, string language, PrivacySession? session, CancellationToken ct = default)
     {
@@ -423,6 +440,24 @@ public class PrivacyAnalyzer : IDisposable
         LoadRules(doc, replace);
     }
 
+    /// <summary>
+    /// Downloads YAML rules from a remote URL (e.g. a centrally managed rules feed) and loads them.
+    /// When <paramref name="replace"/> is true, existing rules are cleared first. The caller is responsible
+    /// for the trustworthiness of <paramref name="url"/> — rules loaded this way execute as regular
+    /// detection rules, so only point it at a source you control.
+    /// </summary>
+    public async Task LoadCustomYamlFromUrlAsync(string url, HttpClient? httpClient = null, bool replace = false, CancellationToken ct = default)
+    {
+        ThrowIfDisposed();
+        var client = httpClient ?? _sharedHttpClient.Value;
+        using var response = await client.GetAsync(url, ct).ConfigureAwait(false);
+        response.EnsureSuccessStatusCode();
+        var yaml = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
+        LoadCustomYamlFromString(yaml, replace);
+    }
+
+    private static readonly Lazy<HttpClient> _sharedHttpClient = new(() => new HttpClient());
+
     /// <summary>Loads custom JSON rules from a file path. When <paramref name="replace"/> is true, existing rules are cleared first.</summary>
     public void LoadCustomJson(string filePath, bool replace = false)
     {
@@ -450,7 +485,7 @@ public class PrivacyAnalyzer : IDisposable
                     try
                     {
                         Func<string, bool>? validator = null;
-                        if (!string.IsNullOrEmpty(rule.ValidatorName) && ValidatorRegistry.TryGet(rule.ValidatorName, out var v))
+                        if (!string.IsNullOrEmpty(rule.ValidatorName) && ValidatorRegistry.TryGet(rule.ValidatorName!, out var v))
                             validator = v;
 
                         var regex = new Regex(rule.Pattern, RegexHelper.CompiledAndSafe, RegexHelper.RegexTimeout);
@@ -513,7 +548,7 @@ public class PrivacyAnalyzer : IDisposable
                     try
                     {
                         Func<string, bool>? validator = null;
-                        if (!string.IsNullOrEmpty(rule.ValidatorName) && ValidatorRegistry.TryGet(rule.ValidatorName, out var v))
+                        if (!string.IsNullOrEmpty(rule.ValidatorName) && ValidatorRegistry.TryGet(rule.ValidatorName!, out var v))
                             validator = v;
 
                         var regex = new Regex(rule.Pattern,
@@ -666,7 +701,10 @@ public class PrivacyAnalyzer : IDisposable
         if (c.ContainsAny(financialIds))
             flags.Add("PCI-DSS & SEPA - Financial/Payment Data");
         if (c.Contains("Password/Secret") || c.Contains("JWT/Token"))
+        {
             flags.Add("NIST 800-53 - Credentials & Secrets");
+            flags.Add("NIS2 Art.21 - Cybersecurity Risk Management (Credential Exposure)");
+        }
         if (c.Contains("GPS Coordinates"))
             flags.Add("GDPR Art.4(1) - Location Tracking");
         if (c.Contains("EU Vehicle License Plate"))
@@ -676,11 +714,22 @@ public class PrivacyAnalyzer : IDisposable
         if (c.Contains("Social / Messenger Handle"))
             flags.Add("GDPR Art.4(1) - Digital Identity");
         if (c.Contains("Minor Data (<16)"))
+        {
             flags.Add("GDPR Art.8 - Enhanced Minor Protection");
+            flags.Add("EU AI Act Art.5 - Vulnerable Groups Protection");
+        }
         if (c.Contains("Legal Case / File Number"))
+        {
             flags.Add("GDPR Art.10 - Judicial Data");
+            flags.Add("EU AI Act Annex III(8) - Law Enforcement & Justice");
+        }
         if (c.Contains("Employee / Badge ID"))
+        {
             flags.Add("GDPR Art.4(1) - Employment Data");
+            flags.Add("EU AI Act Annex III(4) - Employment/Worker Management");
+        }
+        if (c.ContainsAny(financialIds))
+            flags.Add("EU AI Act Annex III(5) - Credit Scoring & Essential Services");
 
         return flags.Distinct().ToList();
     }

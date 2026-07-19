@@ -132,8 +132,13 @@ countries:
         context_keywords: ["steuer-id", "steueridentifikationsnummer", "steuernummer"]
         compliance_tags: ["DSGVO", "BfDI"]
       - category: "German ID Card"
-        pattern: '(?-i)\b[A-Z0-9]{9}\b'
+        # Real Personalausweis shape: 1 letter (from a restricted set, excludes vowels/
+        # ambiguous letters) + 8 digits (the last one is the check digit). Deliberately
+        # different from other 9-character IDs (e.g. Spanish NIF = 8 digits + letter,
+        # UK NINO = 2 letters + 6 digits + letter) to avoid cross-country false positives.
+        pattern: '(?-i)\b[CFGHJKLMNPRTVWXYZ]\d{8}\b'
         base_weight: 14
+        validator_name: "IDCARD_DE"
         context_keywords: ["ausweis", "personalausweis", "reisepass", "id-karte"]
         compliance_tags: ["DSGVO"]
 
@@ -404,3 +409,53 @@ countries:
         base_weight: 16
         context_keywords: ["numero", "identifikation", "numéro d'identification", "matricule"]
         compliance_tags: ["GDPR", "CNPD"]
+
+  - code: "GB"
+    language: "en"
+    rules:
+      - category: "UK National Insurance Number (NINO)"
+        pattern: '\b[A-CEGHJ-PR-TW-Z][A-CEGHJ-NPR-TW-Z]\d{6}[A-D]\b'
+        base_weight: 17
+        validator_name: "NINO_GB"
+        context_keywords: ["national insurance", "nino", "ni number"]
+        compliance_tags: ["UK GDPR", "Data Protection Act 2018"]
+
+  - code: "CH"
+    language: "de/fr/it"
+    rules:
+      - category: "Swiss AHV/AVS Number"
+        pattern: '\b756\.\d{4}\.\d{4}\.\d{2}\b'
+        base_weight: 18
+        validator_name: "AHV_CH"
+        context_keywords: ["ahv-nummer", "no avs", "sozialversicherungsnummer", "numero avs"]
+        compliance_tags: ["FADP", "nLPD"]
+
+  - code: "CN"
+    language: "zh"
+    rules:
+      - category: "Chinese Resident ID Number"
+        pattern: '\b[1-9]\d{5}(?:19|20)\d{2}(?:0[1-9]|1[0-2])(?:0[1-9]|[12]\d|3[01])\d{3}[\dX]\b'
+        base_weight: 20
+        validator_name: "ID_CN"
+        context_keywords: ["身份证", "居民身份证", "id number"]
+        compliance_tags: ["PIPL"]
+
+  - code: "RU"
+    language: "ru"
+    rules:
+      - category: "Russian Taxpayer ID (INN)"
+        pattern: '\b\d{12}\b'
+        base_weight: 17
+        validator_name: "INN_RU"
+        context_keywords: ["инн", "налогоплательщик", "taxpayer id"]
+        compliance_tags: ["152-FZ"]
+
+  - code: "UA"
+    language: "uk"
+    rules:
+      - category: "Ukrainian Taxpayer Number (RNOKPP)"
+        pattern: '\b\d{10}\b'
+        base_weight: 17
+        validator_name: "RNOKPP_UA"
+        context_keywords: ["рнокпп", "ідентифікаційний номер", "taxpayer number"]
+        compliance_tags: ["Law of Ukraine No.2297-VI"]

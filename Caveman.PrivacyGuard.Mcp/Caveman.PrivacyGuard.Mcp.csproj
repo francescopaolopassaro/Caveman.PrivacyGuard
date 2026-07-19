@@ -1,0 +1,33 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <PackageId>Caveman.PrivacyGuard.Mcp</PackageId>
+    <Version>1.2.2</Version>
+    <Authors>Francesco Paolo Passaro</Authors>
+    <Description>MCP (Model Context Protocol) server for Caveman.PrivacyGuard — exposes PII detection/masking, session-based restore, AI-transparency notices, and prompt-injection screening as MCP tools for Claude Code, OpenCode, Cursor, and any MCP-compatible agent.</Description>
+    <PackageTags>privacy;gdpr;pii;ai;llm;mcp;security;masking;prompt-injection</PackageTags>
+    <RepositoryUrl>https://github.com/francescopaolopassaro/Caveman.PrivacyGuard</RepositoryUrl>
+    <PackageProjectUrl>https://github.com/francescopaolopassaro/Caveman.PrivacyGuard</PackageProjectUrl>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <Copyright>Copyright (c) 2026 Passaro Francesco Paolo</Copyright>
+    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>Caveman.PrivacyGuard.Mcp</RootNamespace>
+    <AssemblyName>caveman-privacyguard-mcp</AssemblyName>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Caveman.PrivacyGuard\Caveman.PrivacyGuard.csproj" />
+    <PackageReference Include="ModelContextProtocol" Version="1.4.0" />
+    <PackageReference Include="Microsoft.Extensions.Hosting" Version="8.0.1" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="README.md" Pack="true" PackagePath="\" />
+  </ItemGroup>
+
+</Project>

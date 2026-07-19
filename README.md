@@ -1,224 +1,76 @@
 # Caveman.PrivacyGuard 🛡️🇪🇺
 
-<img width="638" height="408" alt="Gemini_Generated_Image_tnxoi9tnxoi9tnxo" src="https://github.com/user-attachments/assets/5a8e3193-b7d3-4a41-90e6-e672467ce6cb" />
-
-
+<img width="638" height="408" alt="Caveman.PrivacyGuard" src="https://github.com/user-attachments/assets/5a8e3193-b7d3-4a41-90e6-e672467ce6cb" />
 
 [![NuGet](https://img.shields.io/nuget/v/Caveman.PrivacyGuard.svg)](https://www.nuget.org/packages/Caveman.PrivacyGuard)
 [![Downloads](https://img.shields.io/nuget/dt/Caveman.PrivacyGuard.svg)](https://www.nuget.org/packages/Caveman.PrivacyGuard)
-[![License](https://img.shields.io/github/license/caveman/privacyguard.svg)](LICENSE)
+[![License](https://img.shields.io/github/license/francescopaolopassaro/Caveman.PrivacyGuard.svg)](Caveman.PrivacyGuard/LICENSE)
 [![.NET 8](https://img.shields.io/badge/.NET-8.0-blueviolet)](https://dotnet.microsoft.com)
+[![.NET Standard 2.0](https://img.shields.io/badge/.NET_Standard-2.0-purple)](https://docs.microsoft.com/en-us/dotnet/standard/net-standard)
 [![GDPR Ready](https://img.shields.io/badge/GDPR-Compliant-green)](https://gdpr.eu)
 
-> **Enterprise-grade PII & Privacy Analyzer for AI/LLM workflows**  
-> Rileva, valuta e maschera automaticamente dati sensibili in **27 paesi UE**, con scoring del rischio, conformità GDPR/PCI-DSS/NIST e integrazione seamless con qualsiasi pipeline AI.
+**Enterprise-grade PII & Privacy Analyzer for AI/LLM workflows.**
+Detects, scores, and automatically masks sensitive data across **32 countries** (27 EU + UK, Switzerland, China, Russia, Ukraine), with GDPR/AI Act/NIS2/PCI-DSS/NIST compliance mapping and seamless integration with any AI pipeline — including multi-session scenarios for services running multiple chatbots or acting as an AI-provider gateway.
 
----
+This repository contains three projects:
 
-## ✨ Features
+| Project | Description |
+|---|---|
+| [`Caveman.PrivacyGuard`](Caveman.PrivacyGuard) | The core library — PII detection, scoring, masking, session restore, compliance flags. Full documentation and API reference: [Caveman.PrivacyGuard/README.md](Caveman.PrivacyGuard/README.md) |
+| [`Caveman.PrivacyGuard.Mcp`](Caveman.PrivacyGuard.Mcp) | An MCP (Model Context Protocol) server exposing the library's detection, masking, session-restore, AI-transparency-notice, and prompt-injection-screening features as tools for Claude Code, Cursor, and any MCP-compatible agent. See [Caveman.PrivacyGuard.Mcp/README.md](Caveman.PrivacyGuard.Mcp/README.md) |
+| [`Caveman.PrivacyGuard.Demo`](Caveman.PrivacyGuard.Demo) | An interactive console demo (mask/restore round-trip, whitelist, batch dashboard, rule inspection) |
 
-| Feature | Descrizione |
-|---------|-------------|
-| 🌍 **27 Paesi UE** | Pattern nativi per IT, DE, FR, ES, PL, NL, SE, FI, DK, AT, BE, PT, IE, GR, CZ, RO, HU, BG, HR, SK, SI, LT, LV, EE, CY, MT, LU + regole EU generiche |
-| 🔍 **Detection Euristica** | Regex precompilate + validatori algoritmici (Luhn, IBAN MOD97, checksum nazionali) + analisi entropia Shannon |
-| 📊 **Privacy Score** | Punteggio 0-100 con livelli: `Sicuro` → `Basso` → `Medio` → `Alto` → `Critico` |
-| 🎭 **Auto-Masking** | Sostituzione dinamica con placeholder contestuali (`[EMAIL]`, `[IBAN]`, `[CF_IT]`, ecc.) |
-| ⚙️ **YAML-Driven** | Regole configurabili in `rules.yaml` embedded, estendibili a runtime |
-| 🔐 **Compliance Flags** | Mappatura automatica a GDPR, PCI-DSS, NIST 800-53, autorità nazionali (CNIL, BfDI, AEPD, ecc.) |
-| 🧵 **Thread-Safe** | Pronto per microservizi ad alto throughput con `ReaderWriterLockSlim` e regex cache |
-| 🚀 **Performance** | `RegexOptions.NonBacktracking` (.NET 8), pre-compilazione, zero allocazioni ridondanti |
-
----
-
-## 📦 Installazione
+## Quick Start
 
 ```bash
 dotnet add package Caveman.PrivacyGuard
 ```
-## 🚀 Quick Start
-Modalità Avviso (Default)
 
 ```csharp
 var analyzer = new PrivacyAnalyzer { EnableAutoMasking = true };
+var result = analyzer.Analyze("Customer: Mario Rossi, email mario@company.it, IBAN: IT60X0542811101000000123456");
 
-// 🔹 Default: Inglese
-var resEn = analyzer.Analyze("CF: RSSMRA80A01H501U, email: test@x.com");
-Console.WriteLine($"[EN] Risk: {resEn.RiskLevel}\n{resEn.WarningMessage}");
-
-// 🔹 Overload: Italiano
-var resIt = analyzer.Analyze("CF: RSSMRA80A01H501U, email: test@x.com", "it");
-Console.WriteLine($"[IT] Rischio: {resIt.RiskLevel}\n{resIt.WarningMessage}");
-
-// 🔹 Overload: Tedesco
-var resDe = analyzer.Analyze("Steuer-ID: 12345678901, IBAN: DE89370400440532013000", "de");
-Console.WriteLine($"[DE] Risiko: {resDe.RiskLevel}\n{resDe.WarningMessage}");
-```
-Output:
-
-```bash
-🔒 Score: 26/100
-⚠️  Avviso: ⛔ Dati rilevati: Codice Fiscale (IT), Email. Pseudonimizzazione obbligatoria.
-✅ Safe for AI: False
+Console.WriteLine(result.MaskedText);
+// Customer: Mario Rossi, email [EMAIL], IBAN: [IBAN]
 ```
 
-```csharp
-var analyzer = new PrivacyAnalyzer { EnableAutoMasking = true };
+Full quick start, session-restore walkthrough, multi-session (multi-chatbot) setup, AI-transparency notices, and the complete API reference live in [Caveman.PrivacyGuard/README.md](Caveman.PrivacyGuard/README.md).
 
-var text = "Cliente: Mario Rossi, email mario@azienda.it, IBAN: IT60X0542811101000000123456";
-var result = analyzer.Analyze(text);
+## Highlights
 
-Console.WriteLine($"🛡️  Testo sicuro per LLM:\n{result.MaskedText}");
-```
+- 🌍 **32 countries**, each with a real algorithmic validator (checksum), not just regex
+- 🔐 **Compliance flags** for GDPR, EU AI Act, NIS2, PCI-DSS, NIST 800-53
+- 🔄 **Session Restore** — placeholder-based masking so sensitive data never has to leave the client
+- 🧑‍🤝‍🧑 **Multi-Session** — `PrivacySessionManager` isolates conversations for multi-chatbot / AI-provider backends
+- 🛡️ **Prompt Injection Guard** — heuristic screening of untrusted text before it reaches an LLM's context
+- 💬 **AI Transparency Notice** — configurable, localized "you're talking to an AI" disclosure
+- ⚙️ **YAML/JSON-driven rules**, loadable from a file, a string, or a remote URL, with hot-reload
+- 🧵 Thread-safe, zero required external dependencies, targets both `net8.0` and `netstandard2.0`
 
-Output:
+See the [CHANGELOG](Caveman.PrivacyGuard/CHANGELOG.md) for full version history.
 
-```bash
-🛡️  Testo sicuro per LLM:
-Cliente: Mario Rossi, email [EMAIL], IBAN: [IBAN]
-```
+## ⚠️ Disclaimer
 
-| **Codice**  | **Paese**   | **Identificatori Principali** | **Autorità di Riferimento**      |
-|-------------|-------------|-------------------------------|----------------------------------|
-| **🇮🇹 IT** | Italia      | Codice Fiscale, Partita IVA   | Garante Privacy, Agenzia Entrate |
-| **🇩🇪 DE** | Germania    | Steuer-ID, Personalausweis    | BfDI, DSGVO                      |
-| **🇫🇷 FR** | Francia     | NIR/SSN, SIREN/SIRET          | CNIL, RGPD                       |
-| **🇪🇸 ES** | Spagna      | NIF/NIE                       | AEPD, RGPD                       |
-| **🇵🇱 PL** | Polonia     | PESEL, NIP                    | UODO, RODO                       |
-| **🇳🇱 NL** | Paesi Bassi | BSN                           | AP, AVG                          |
-| **🇸🇪 SE** | Svezia      | Personnummer                  | IMY                              |
-| **🇫🇮 FI** | Finlandia   | Henkilötunnus (HETU)          | Tietosuojavaltuutettu            |
-| **🇩🇰 DK** | Danimarca   | CPR                           | Datatilsynet                     |
-| **🇦🇹 AT** | Austria     | SV-Nummer, UID                | DSB                              |
-| **🇧🇪 BE** | Belgio      | Numéro National               | APD                              |
-| **🇵🇹 PT** | Portogallo  | NIF                           | CNPD                             |
-| **🇮🇪 IE** | Irlanda     | PPSN                          | DPC                              |
-| **🇬🇷 GR** | Grecia      | AFM, AMKA                     | HDPA                             |
-| **🇨🇿 CZ** | Cechia      | Rodné číslo                   | ÚOOÚ                             |
-| **🇷🇴 RO** | Romania     | CNP                           | ANSPDCP                          |
-| **🇭🇺 HU** | Ungheria    | Adóazonosító                  | NAIH                             |
-| **🇧🇬 BG** | Bulgaria    | EGN                           | CPDP                             |
-| **🇭🇷 HR** | Croazia     | OIB                           | AZOP                             |
-| **🇸🇰 SK** | Slovacchia  | Rodné číslo                   | ÚOOÚ                             |
-| **🇸🇮 SI** | Slovenia    | EMŠO                          | IP                               |
-| **🇱🇹 LT** | Lituania    | Asmens kodas                  | VDAI                             |
-| **🇱🇻 LV** | Lettonia    | Personas kods                 | DVI                              |
-| **🇪🇪 EE** | Estonia     | Isikukood                     | AKI                              |
-| **🇨🇾 CY** | Cipro       | ID Number                     | CIPD                             |
-| **🇲🇹 MT** | Malta       | ID Number                     | IDPC                             |
-| **🇱🇺 LU** | Lussemburgo | Numéro d'identification       | CNPD                             |
+This library is a technical support tool. It does not replace a Data Protection Impact Assessment (DPIA) or the advice of a DPO. GDPR, AI Act, and NIS2 compliance require contextual legal assessment, a documented legal basis, and organizational processes that no library can substitute for.
 
+## Contributing
 
-## ⚙️ Configurazione Avanzata
+Fork the repo, add rules to `rules.yaml` + validators to `ValidatorRegistry.cs`, add tests, and open a PR. See [Caveman.PrivacyGuard/README.md](Caveman.PrivacyGuard/README.md#-contributing) for details on adding a new country.
 
-Whitelist (Esclusioni Sicure)
+## License
 
-```csharp
-analyzer.AddToWhitelist(
-    "test@company.eu",      // Email di test
-    "127.0.0.1",            // IP localhost
-    "IT00000000000"         // PIVA dummy
-);
-```
+MIT — see [LICENSE](Caveman.PrivacyGuard/LICENSE).
 
-# Validatori Personalizzati a Runtime
+## Technology Partnership
 
-```csharp
-// Registra un nuovo validatore per un formato nazionale custom
-ValidatorRegistry.Register("MY_CUSTOM_ID", value => 
-    value.Length == 10 && value.StartsWith("XYZ") && value.All(char.IsDigit));
+<img src="https://www.digitalsolutions.it/img/partners/novaroutelogo.png" alt="NovaRouteAI" height="180" style="max-width: 100%; height: auto; min-height: 180px; max-height: 190px;">
 
-// Poi usalo nel tuo YAML custom:
-// validator_name: "MY_CUSTOM_ID"
-```
-# 📐 Caricamento YAML Esterno (Opzionale)
+**[NovaRouteAI](https://novarouteai.com/?ref=synthelion)** — Build with Chinese AI models through one simple API.
 
-```csharp
-// Per caricare regole aggiornate senza ricompilare la libreria
-// (implementazione da aggiungere su richiesta)
-// analyzer.LoadCustomYaml("path/to/custom-rules.yaml");
-```
+NovaRouteAI helps developers and AI SaaS teams test, compare, and run models like DeepSeek, Qwen, Doubao, Kimi, and GLM without managing multiple provider accounts. Start with test credits and optimize your cost per successful task.
 
-# 📐 Architettura del Punteggio
+[Click here to know NovaRouteAI](https://novarouteai.com/?ref=synthelion)
 
-```csharp
-Score Finale = 
-  (BaseScore × CorrelationMultiplier) + 
-  (ContextBoost × 12) + 
-  (DensityBonus × 18)
-```
+---
 
-| **Componente**            | **Descrizione**                                                 | ****        | ****   |
-|---------------------------|-----------------------------------------------------------------|-------------|--------|
-| **BaseScore**             | Somma dei pesi delle regole matchate × validazione × confidence |             |        |
-| **CorrelationMultiplier** | 1.0 + (categorie_distinte × 0.12)"                              | max 2.2"    |        |
-| **ContextBoost**          | +0.12 per ogni PII vicino a parole trigger (""password:"        | "riservato" | ecc.)" |
-| **DensityBonus**          | Penalizza testi brevi con molti PII (rischio fuga dati)         |             |        |
-
-
-Soglie di Rischio:
-
-| **Score**  | **Livello**         | **Azione Consigliata**                 |
-|------------|---------------------|----------------------------------------|
-| **0-15**   | ✅ Sicuro (AI Ready) | Invio diretto a LLM                   |
-| **16-35**  | ⚠️ Basso            | Logging + monitoraggio                 |
-| **36-60**  | ⛔ Medio             | Anonimizzazione obbligatoria          |
-| **61-85**  | 🚨 Alto             | Sandbox isolata o dati sintetici       |
-| **86-100** | 🛑 Critico          | Blocco assoluto, processing on-premise |
-
-
-# 🔐 Compliance & GDPR
-
-PrivacyAnalysisResult.ComplianceFlags mappa automaticamente i dati rilevati a framework normativi:
-
-```csharp
-if (result.ComplianceFlags.Contains("GDPR Art.4(1)"))
-{
-    // Logica per base giuridica, DPIA, minimizzazione
-}
-if (result.ComplianceFlags.Contains("PCI-DSS"))
-{
-    // Crittografia, segmentazione rete, audit
-}
-```
-
-# ⚠️ Disclaimer: Questa libreria è uno strumento tecnico di supporto. Non sostituisce una Valutazione d'Impatto sulla Protezione dei Dati (DPIA) né il parere di un DPO. La conformità GDPR richiede valutazioni contestuali, basi giuridiche e processi organizzativi.
-
-# 🧪 Testing & Performance
-
-```csharp
-// Benchmark rapido
-var analyzer = new PrivacyAnalyzer();
-var sw = System.Diagnostics.Stopwatch.StartNew();
-
-for (int i = 0; i < 10_000; i++)
-{
-    analyzer.Analyze("Testo con email test@example.com e IBAN DE89370400440532013000");
-}
-
-sw.Stop();
-Console.WriteLine($"⚡ 10k analisi in {sw.ElapsedMilliseconds}ms ({10_000.0 / sw.ElapsedMilliseconds:F1} req/sec)");
-```
-
-# 🤝 Contributing
-
-Fork il repo
-Crea un branch per la tua feature (git checkout -b feature/nuovo-paese)
-Aggiungi regole in rules.yaml + validatori in ValidatorRegistry.cs
-Aggiungi test in tests/ (xUnit)
-PR con descrizione chiara e esempi
-🌍 Per aggiungere un nuovo paese: segui lo schema YAML esistente, implementa il validatore (se necessario) e aggiungi la voce nella tabella del README.
-
-# 📄 License
-
-Distribuito sotto licenza MIT. Vedi LICENSE per dettagli.
-
-# 🆘 Support & Roadmap
-
-| **Versione** | **Feature**                          | **Stato**      |
-|--------------|--------------------------------------|----------------|
-| **1.2.1**    | Bugfix: German ID Card false positives, demo round-trip | ✅ Release |
-| **1.2**      | 27 paesi UE, masking, YAML embedded  | ✅ Release      |
-| **1.3**      | Configurazione JSON + hot-reload     | 🔄 In sviluppo |
-
-
-# 🛡️ Proteggi i dati, abilita l'AI. Compliance by design.
+# 🛡️ Protect data, enable AI. Compliance by design.

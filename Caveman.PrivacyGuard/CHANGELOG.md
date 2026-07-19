@@ -1,46 +1,65 @@
 # Changelog
 
+## [1.2.2] - 2026-07-19
+
+### Added
+- 🌍 5 new countries with real algorithmic validators (not just regex): UK NINO (`NINO_GB`), Swiss AHV/AVS (`AHV_CH`), Chinese Resident ID (`ID_CN`, GB 11643-1999 checksum), Russian INN (`INN_RU`, two-stage weighted checksum), Ukrainian RNOKPP (`RNOKPP_UA`)
+- 🛡️ NuGet package icon (`caveman-icon.png`) — now packed and referenced via `PackageIcon`
+- ⚖️ EU AI Act compliance-flag mapping (Art.5 vulnerable groups, Annex III employment/credit-scoring/justice) alongside existing GDPR/PCI-DSS/NIST tags
+- ⚖️ NIS2 Art.21 compliance flag for detected credentials/secrets (cybersecurity risk management relevance)
+- `PrivacySessionManager` — thread-safe registry of `PrivacySession` instances keyed by an arbitrary id (conversation/user/tenant), with `GetOrCreate`, `TryGet`, `Remove`, `Clear`, `GetActiveSessionIds`, and `PruneIdleSessions` for bounding memory in services juggling many concurrent chatbot/AI-provider conversations
+- `AiTransparencyNotice` — configurable, localized (EN/IT/DE/FR/ES) disclosure message for informing end users they're interacting with an AI system and that sensitive data is masked (supports, but does not by itself guarantee, EU AI Act Art.50 transparency obligations)
+- `ChatIntentRouter` — minimal command router for chatbot backends: register named intents/commands with a predicate and handler, route incoming messages before they reach the analyzer
+- Demo: `/dashboard` command — aggregate PII stats (category frequency, average score, risk-level distribution) over a multi-country sample batch
+
+### Fixed
+- 🛑 Cross-country false positive: the "German ID Card" rule (`\b[A-Z0-9]{9}\b`) matched *any* 9-character alphanumeric string, including a Spanish NIF (`12345678Z`) or the new UK NINO (`AB123456C`). It's now a structurally distinct 1-letter + 8-digit pattern (matching the real Personalausweis shape) with its own checksum validator (`IDCARD_DE`), eliminating the overlap instead of just down-weighting it
+- All nullable-reference-type build warnings (CS8604, CS8602, CS8618) across both target frameworks — `net8.0` and `netstandard2.0` now build with zero warnings
+
+### Testing
+- 25 new regression tests covering: the 6 new validators (valid + invalid checksum per country), cross-country conflict checks (Swiss/Chinese formats vs. Luxembourg's bare 13-digit rule, German ID Card vs. Spanish NIF/UK NINO), `PrivacySessionManager` isolation and concurrency, `AiTransparencyNotice`, `ChatIntentRouter`, and the new AI Act/NIS2 compliance flags (230/230 total, up from 181)
+
 ## [1.2.1] - 2026-06-01
 
 ### Fixed
-- 🛑 **Critical: German ID Card false positives** — regex `\b[A-Z0-9]{9}\b` con `RegexOptions.IgnoreCase`
-  globale matchava qualsiasi parola di 9 caratteri (es. "francesco", "contratto") come "German ID Card".
-  Aggiunto `(?-i)` inline per ripristinare case-sensitivity. (`rules.yaml:135`)
+- 🛑 **Critical: German ID Card false positives** — the regex `\b[A-Z0-9]{9}\b` combined with a
+  global `RegexOptions.IgnoreCase` matched any 9-character word (e.g. "francesco", "contratto") as
+  a "German ID Card". Added an inline `(?-i)` to restore case-sensitivity. (`rules.yaml:135`)
 
 ### Added
-- Demo: `/restore` comando interattivo per ripristinare placeholder da risposta AI
-- Demo: `/roundtrip` demo completa mask → AI → restore client-side
+- Demo: `/restore` interactive command to restore placeholders from an AI response
+- Demo: `/roundtrip` full mask → AI → client-side restore demo
 
 ## [1.2.0] - 2026-06-02
 
 ### Added
-- `ThrowIfDisposed()` — tutti i metodi pubblici lanciano `ObjectDisposedException` esplicito
-- `GetWhitelist()` → `IReadOnlySet<string>` — ispezione whitelist
-- `IsWhitelisted(value)` → `bool` — test rapido whitelist
-- `AnalyzeAsync` — 4 overload con `CancellationToken` per UI/web
-- `AnalyzeBatch` / `AnalyzeBatchAsync` — analisi batch di testi
-- `PrivacySession.Count` — O(1) count senza copiare il dizionario
-- `NormalizeNewlines(StringBuilder)` — zero alloc extra su `\r\n` / `\r`
-- `LoadCustomJson` / `LoadCustomJsonFromString` — configurazione JSON
-- `WatchConfig` / `StopWatching` / `ConfigReloaded` — hot-reload su file JSON
-- `PrivacySession.ToJson` / `FromJson` / `ImportFromJson` — export/persistenza sessioni
-- `IReadOnlySession` interfaccia read-only per sessioni
-- `PrivacyAnalyzer.Logger` — integrazione `ILogger` per diagnostic
-- `PrivacyAnalyzer.ValidateRules()` — validazione regole caricate
-- `GetRule()` cache O(1) via `ConcurrentDictionary`
-- `netstandard2.0` target — compatibilità framework estesa
-- Demo: `/export`, `/validate` comandi
+- `ThrowIfDisposed()` — all public methods throw an explicit `ObjectDisposedException`
+- `GetWhitelist()` → `IReadOnlySet<string>` — whitelist inspection
+- `IsWhitelisted(value)` → `bool` — quick whitelist check
+- `AnalyzeAsync` — 4 overloads with `CancellationToken` for UI/web
+- `AnalyzeBatch` / `AnalyzeBatchAsync` — batch text analysis
+- `PrivacySession.Count` — O(1) count without copying the dictionary
+- `NormalizeNewlines(StringBuilder)` — zero extra allocation on `\r\n` / `\r`
+- `LoadCustomJson` / `LoadCustomJsonFromString` — JSON configuration
+- `WatchConfig` / `StopWatching` / `ConfigReloaded` — hot-reload on JSON files
+- `PrivacySession.ToJson` / `FromJson` / `ImportFromJson` — session export/persistence
+- `IReadOnlySession` read-only interface for sessions
+- `PrivacyAnalyzer.Logger` — `ILogger` integration for diagnostics
+- `PrivacyAnalyzer.ValidateRules()` — validates loaded rules
+- `GetRule()` O(1) cache via `ConcurrentDictionary`
+- `netstandard2.0` target — extended framework compatibility
+- Demo: `/export`, `/validate` commands
 
 ### Fixed
-- `Dispose()` crash se lock in uso — `catch(SynchronizationLockException)`, lock lasciato al GC
-- Warnings nullable: `ValidatorRegistry.TryGet` out → `Func<string, bool>?`, `ContextKeywords` → `!`
-- `System.Index` / `Math.Clamp` / `RegexParseException` incompatibilità netstandard2.0
+- `Dispose()` crash if the lock was in use — `catch(SynchronizationLockException)`, lock left to the GC
+- Nullable warnings: `ValidatorRegistry.TryGet` out → `Func<string, bool>?`, `ContextKeywords` → `!`
+- `System.Index` / `Math.Clamp` / `RegexParseException` netstandard2.0 incompatibilities
 
 ### Improved
-- Demo: header e comandi `/whitelist`, `/rules`, `/export`, `/validate`
-- README: documentate tutte le nuove API
+- Demo: header and `/whitelist`, `/rules`, `/export`, `/validate` commands
+- README: documented all new APIs
 - NuGet package version updated to 1.2.0
-- `RegexOptions` unificato in `RegexHelper` per multi-target
+- `RegexOptions` unified in `RegexHelper` for multi-targeting
 
 ## [1.1.0] - 2026-21-05
 
