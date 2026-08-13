@@ -1,8 +1,19 @@
 # Release Notes — Caveman.PrivacyGuard
 
-Latest release: **v1.2.2**
+Latest release: **v1.3.0** - streaming & document masking (Synthelion 1.2.5 port)
 
-> Cumulative summary of all changes from v1.0.0 to v1.2.2. See [Caveman.PrivacyGuard/CHANGELOG.md](Caveman.PrivacyGuard/CHANGELOG.md) for the canonical, version-by-version changelog shipped inside the NuGet package.
+> Cumulative summary of all changes from v1.0.0 to v1.3.0. See [Caveman.PrivacyGuard/CHANGELOG.md](Caveman.PrivacyGuard/CHANGELOG.md) for the canonical, version-by-version changelog shipped inside the NuGet package.
+
+---
+
+## v1.3.0 (2026-08-13) - Streaming & Document Masking (Synthelion 1.2.5 port)
+
+### Added
+
+- `PrivacyStreamMasker` - boundary-safe chunked/streaming PII masking (Feed/Flush) with a configurable overlap window (default 512 chars) so a match spanning a chunk boundary is still caught whole; `PrivacyStreamMasker.MaskStream` convenience helper
+- `PrivacySession.Summary()` - redacted placeholder+category view that never contains the original value; safe to log/display/return over APIs (unlike `GetAll()`/`ToJson()`)
+- `DocumentMasker` - streaming masking of plain text, Markdown and CSV into a `name.masked.ext` copy next to the source (the original file is never overwritten); minimal RFC-4180-aware CSV row reader so quoted multi-line cells survive
+- 12 new regression tests (259/259 total)
 
 ---
 

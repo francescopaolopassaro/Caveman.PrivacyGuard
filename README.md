@@ -41,6 +41,7 @@ Full quick start, session-restore walkthrough, multi-session (multi-chatbot) set
 - 🌍 **32 countries**, each with a real algorithmic validator (checksum), not just regex
 - 🔐 **Compliance flags** for GDPR, EU AI Act, NIS2, PCI-DSS, NIST 800-53
 - 🔄 **Session Restore** — placeholder-based masking so sensitive data never has to leave the client
+- **Streaming & Document Masking (v1.3.0)** - `PrivacyStreamMasker` masks live or chunked streams with a boundary-safe overlap window; `PrivacySession.Summary()` offers a redacted placeholder+category view that never leaks original values; `DocumentMasker` masks plain-text, Markdown and CSV files into a `name.masked.ext` copy (original never overwritten)
 - 🧑‍🤝‍🧑 **Multi-Session** — `PrivacySessionManager` isolates conversations for multi-chatbot / AI-provider backends
 - 🛡️ **Prompt Injection Guard** — heuristic screening of untrusted text before it reaches an LLM's context
 - 💬 **AI Transparency Notice** — configurable, localized "you're talking to an AI" disclosure

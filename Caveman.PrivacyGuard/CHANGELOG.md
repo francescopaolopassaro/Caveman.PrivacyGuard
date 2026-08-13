@@ -1,5 +1,19 @@
 # Changelog
 
+## [1.3.0] - 2026-08-13
+
+Synthelion 1.2.5 streaming & document masking port (Synthelion is the Python port of Caveman.PrivacyGuard's analyzer; this release brings its `privacy_stream.py` / `document_extractor.py` behaviours back into the .NET library, dependency-free).
+
+### Added
+- **`PrivacyStreamMasker`** — boundary-safe chunked/streaming PII masking. `Feed(chunk)` appends to an internal tail buffer and returns the masked-safe prefix (everything except the last `overlapChars` characters, default 512, held back so a PII pattern spanning a chunk boundary is still analyzed whole); `Flush()` masks the final remainder once the input is exhausted. Backs both chunked file reads and live stream masking (e.g. an LLM's streamed output). Whitespace-only segments are passed through verbatim instead of being collapsed by the analyzer's empty-text handling.
+- **`PrivacyStreamMasker.MaskStream(chunks, ...)`** — convenience helper masking an iterable of chunks, yielding masked pieces as they become safe to emit plus the tail.
+- **`PrivacySession.Summary()`** + `SessionSummaryItem` — redacted placeholder+category view that never contains the original value; safe to log, display, or return from an API/CLI response, unlike `GetAll()`/`ToJson()` which carry cleartext PII (their XML docs now warn about exposing them to untrusted parties).
+- **`DocumentMasker`** — streaming PII masking for plain text, Markdown and CSV into a `name.masked.ext` copy next to the source (the original file is never overwritten). Files are processed in chunks (<chunk model of `PrivacyStreamMasker`), never loaded whole; CSV rows are read with a minimal RFC-4180-aware reader so quoted multi-line cells survive. Extension-based `DetectFormat`; unrecognized extensions fall back to plain text rather than raising. PDF/DOCX/XLSX (which require optional external libraries in the Python port) are intentionally out of scope to keep the library dependency-free.
+- **`DocumentMasker.MaskFile(path, ...)`** returns a `MaskDocumentResult` with the masked copy's path, detected format, and the total PII `MatchCount` (tallied via `PrivacyStreamMasker.OnChunkAnalyzed`).
+
+### Testing
+- 12 new regression tests: chunk-boundary masking (PII split across feeds), `MaskStream`, whitespace passthrough, redacted `Summary()` (property shape + no cleartext), `DetectFormat`, txt/md/csv masking (row structure preserved, source untouched), quoted multi-line CSV cells, and missing-source error handling (259/259 total, up from 247).
+
 ## [1.2.2] - 2026-07-19
 
 ### Added

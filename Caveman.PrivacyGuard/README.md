@@ -253,6 +253,40 @@ if (matchedIntent is null)
 }
 ```
 
+## Streaming & Document Masking (v1.3.0)
+
+### Boundary-Safe Stream Masking
+
+`PrivacyStreamMasker` masks PII in incrementally-arriving text (a chunked file read, or a live LLM stream) without loading the whole input. It keeps a tail buffer of `overlapChars` (default 512) so a match that spans a chunk boundary is still analyzed whole.
+
+```csharp
+var masker = new PrivacyStreamMasker(session: session, language: "en", overlapChars: 512);
+foreach (var chunk in ReadInChunks(path))
+    Console.Write(masker.Feed(chunk));   // masked-safe prefix as it becomes safe
+Console.Write(masker.Flush());           // final remainder
+
+// Or, for an in-memory iterable:
+var masked = string.Concat(PrivacyStreamMasker.MaskStream(chunks, session));
+```
+
+### Redacted Session Summary
+
+`PrivacySession.Summary()` returns placeholder + category only — never the original value — so it is safe to log, display, or return from an API/CLI response. `GetAll()` / `ToJson()` carry the cleartext PII; keep them server-side only.
+
+```csharp
+foreach (var item in session.Summary())   // SessionSummaryItem { Placeholder, Category }
+    Console.WriteLine($"{item.Placeholder}: {item.Category}");
+```
+
+### Document Masking (txt / Markdown / CSV)
+
+`DocumentMasker.MaskFile` streams a file in chunks and writes a masked copy to `name.masked.ext` next to the source — the original file is never overwritten. CSV rows are read with a minimal RFC-4180-aware reader so quoted multi-line cells survive.
+
+```csharp
+var result = DocumentMasker.MaskFile("contacts.csv", session: session);
+// result.OutputPath → "contacts.masked.csv", result.MaskedMatchCount → total PII matches
+```
+
 ## ⚙️ Advanced Configuration
 
 ### Whitelist (Safe Exclusions)

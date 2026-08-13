@@ -28,6 +28,9 @@ public record PlaceholderEntry
     public required string Placeholder { get; init; }
 }
 
+/// <summary>Redacted view of a session entry: placeholder + category only — never the original value.</summary>
+public record SessionSummaryItem(string Placeholder, string Category);
+
 /// <summary>Result of a restore operation with the restored text and a count of replaced placeholders.</summary>
 public record RestoreResult(string Text, int RestoredCount);
 
@@ -40,6 +43,8 @@ public interface IReadOnlySession
     PlaceholderEntry? GetEntry(string placeholder);
     /// <summary>Returns a snapshot of all placeholder entries.</summary>
     IReadOnlyDictionary<string, PlaceholderEntry> GetAll();
+    /// <summary>Redacted view of the session (placeholder + category only, never the original value). Safe to log, display, or return from an API/CLI response.</summary>
+    IReadOnlyList<SessionSummaryItem> Summary();
     /// <summary>Replaces all placeholders in the given text with their original values.</summary>
     string Restore(string text);
     /// <summary>Replaces all placeholders and returns both the restored text and count of replacements.</summary>
@@ -131,6 +136,15 @@ public class PrivacySession : IReadOnlySession
     public IReadOnlyDictionary<string, PlaceholderEntry> GetAll() =>
         new Dictionary<string, PlaceholderEntry>(_map);
 
+    /// <summary>
+    /// Redacted view of the session: placeholder + category only, never
+    /// <see cref="PlaceholderEntry.OriginalValue"/>. Safe to log, display, or return
+    /// from an API/CLI response — unlike <see cref="GetAll"/>/<see cref="ToJson"/>,
+    /// which carry the real PII.
+    /// </summary>
+    public IReadOnlyList<SessionSummaryItem> Summary() =>
+        _map.Select(kvp => new SessionSummaryItem(kvp.Key, kvp.Value.Category)).ToList();
+
     /// <summary>Merges entries from another session into this one. Duplicate values are skipped.</summary>
     public void MergeFrom(PrivacySession other)
     {
@@ -151,7 +165,13 @@ public class PrivacySession : IReadOnlySession
         _counter = 0;
     }
 
-    /// <summary>Exports all entries as a JSON string for persistence.</summary>
+    /// <summary>
+    /// Exports all entries as a JSON string for persistence. Intended only for trusted
+    /// cross-process session handoff (e.g. saving a session so a later process can
+    /// <see cref="FromJson"/> it). Never expose this over an HTTP response, log it, or
+    /// write it anywhere an untrusted party could read it — it contains cleartext PII;
+    /// use <see cref="Summary"/> for a safe, redacted view.
+    /// </summary>
     public string ToJson()
     {
         var entries = _map.Select(kvp => new
