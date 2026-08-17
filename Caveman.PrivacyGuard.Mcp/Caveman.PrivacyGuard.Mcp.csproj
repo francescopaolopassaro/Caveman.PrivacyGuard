@@ -2,7 +2,7 @@
 
   <PropertyGroup>
     <PackageId>Caveman.PrivacyGuard.Mcp</PackageId>
-    <Version>1.2.2</Version>
+    <Version>1.3.0</Version>
     <Authors>Francesco Paolo Passaro</Authors>
     <Description>MCP (Model Context Protocol) server for Caveman.PrivacyGuard — exposes PII detection/masking, session-based restore, AI-transparency notices, and prompt-injection screening as MCP tools for Claude Code, OpenCode, Cursor, and any MCP-compatible agent.</Description>
     <PackageTags>privacy;gdpr;pii;ai;llm;mcp;security;masking;prompt-injection</PackageTags>
@@ -10,6 +10,7 @@
     <PackageProjectUrl>https://github.com/francescopaolopassaro/Caveman.PrivacyGuard</PackageProjectUrl>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <Copyright>Copyright (c) 2026 Passaro Francesco Paolo</Copyright>
+    <PackageReleaseNotes>1.3.0: aligned with Caveman.PrivacyGuard 1.3.0. New tools: mask_stream (boundary-safe streaming PII masking over an array of text chunks, with a configurable overlap window), mask_document (streaming masking of plain-text/Markdown/CSV files into a name.masked.ext copy, original never overwritten), and session_summary (redacted placeholder+category view of a session — never the original value). 1.2.2 added 5 new country validators, AI Act/NIS2 compliance flags, PrivacySessionManager, AiTransparencyNotice and ChatIntentRouter.</PackageReleaseNotes>
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
     <OutputType>Exe</OutputType>
     <TargetFramework>net8.0</TargetFramework>
@@ -21,7 +22,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Caveman.PrivacyGuard\Caveman.PrivacyGuard.csproj" />
+    <PackageReference Include="Caveman.PrivacyGuard" Version="1.3.0" />
     <PackageReference Include="ModelContextProtocol" Version="1.4.0" />
     <PackageReference Include="Microsoft.Extensions.Hosting" Version="8.0.1" />
   </ItemGroup>
