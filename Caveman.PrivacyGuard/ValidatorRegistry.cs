@@ -159,6 +159,7 @@ public static class ValidatorRegistry
         internal static bool ValidatePersonnummer_SE(string s)
         {
             var clean = s.Replace("-", "");
+            if (clean.Length == 12) clean = clean.Substring(2); // 12-digit form: drop the century
             if (clean.Length != 10 || !clean.All(char.IsDigit)) return false;
             int sum = 0, alt = 0;
             for (int i = 0; i < 9; i++)

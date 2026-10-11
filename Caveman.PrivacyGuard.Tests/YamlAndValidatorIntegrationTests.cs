@@ -40,7 +40,7 @@ public class YamlAndValidatorIntegrationTests
     [Test]
     public void Yaml_HasValidStructure()
     {
-        Assert.That(_yamlDoc.Version, Is.EqualTo("2.0"));
+        Assert.That(_yamlDoc.Version, Is.EqualTo("2.1"));
         Assert.That(_yamlDoc.Countries, Is.Not.Null.And.Not.Empty);
         Assert.That(_yamlDoc.GlobalContextKeywords, Is.Not.Null.And.Not.Empty);
         Assert.That(_yamlDoc.Countries.Count, Is.GreaterThanOrEqualTo(27), "There must be at least 27 EU countries");
@@ -91,7 +91,7 @@ public class YamlAndValidatorIntegrationTests
         yield return new TestCaseData("NIF_PT", "123456789", "123456780");
         yield return new TestCaseData("PPSN_IE", "1234567U", "1234567Z");
         yield return new TestCaseData("AFM_GR", "123456783", "123456780");
-        yield return new TestCaseData("RC_CZ", "850101/001", "851301/001");
+        yield return new TestCaseData("RC_CZ", "850101/0012", "851301/0012");
         yield return new TestCaseData("CNP_RO", "1850101123451", "1850101123450");
         yield return new TestCaseData("EGN_BG", "8501011234", "8501011230");
         yield return new TestCaseData("OIB_HR", "12345678909", "12345678900");
@@ -133,29 +133,29 @@ public class YamlAndValidatorIntegrationTests
         yield return new TestCaseData("Phone E.164", "+393331234567", "12345");
         yield return new TestCaseData("IBAN", "DE89370400440532013000", "DE00000000000000000000");
         yield return new TestCaseData("Credit Card", "4532015112830366", "1234567890123456");
-        yield return new TestCaseData("Italian Tax Code (CF)", "RSSMRA85T10H501Z", "INVALIDCF12345");
-        yield return new TestCaseData("Italian VAT Number", "IT12345678903", "IT12345678900");
+        yield return new TestCaseData("Italian Tax Code (CF)", "RSSMRA80A01H501U", "INVALIDCF12345");
+        yield return new TestCaseData("Italian VAT Number", "IT00000010213", "IT00000010210");
         yield return new TestCaseData("German Tax ID (Steuer-Id)", "12345678901", "ABC12345678");
-        yield return new TestCaseData("French Social Security (NIR)", "1 85 12 75 001 234 56", "9 85 12 75 001 234 56");
+        yield return new TestCaseData("French Social Security (NIR)", "185017500123411", "185017500123400");
         yield return new TestCaseData("French Business ID (SIREN/SIRET)", "123 456 789 000 12", "123 456 789");
         yield return new TestCaseData("Spanish Tax/ID Number (NIF/NIE)", "12345678Z", "123456789");
         yield return new TestCaseData("Polish PESEL", "85010112345", "85010112340");
         yield return new TestCaseData("Polish VAT (NIP)", "12-345-67-89-0", "12345678");
-        yield return new TestCaseData("Dutch BSN", "123456789", "123456780");
-        yield return new TestCaseData("Swedish Personal ID", "19850101-1234", "198501011234");
-        yield return new TestCaseData("Finnish Personal ID (Hetu)", "010185+123A", "010185A123B");
-        yield return new TestCaseData("Danish CPR Number", "010185-1234", "0101851230");
-        yield return new TestCaseData("Belgian National Registry", "12345678901", "1234567890");
+        yield return new TestCaseData("Dutch BSN", "111222333", "111222334");
+        yield return new TestCaseData("Swedish Personal ID", "19850101-1236", "19850101-1234");
+        yield return new TestCaseData("Finnish Personal ID (Hetu)", "311280-888Y", "311280-888Z");
+        yield return new TestCaseData("Danish CPR Number", "1111111118", "1111111110");
+        yield return new TestCaseData("Belgian National Registry", "80010100107", "80010100170");
         yield return new TestCaseData("Portuguese Tax Number (NIF)", "123456789", "123456780");
-        yield return new TestCaseData("Irish PPSN", "1234567A", "1234567Z");
-        yield return new TestCaseData("Greek Tax Number (AFM)", "123456789", "123456780");
-        yield return new TestCaseData("Czech Birth Number", "850101/1234", "851301/1234");
-        yield return new TestCaseData("Romanian Personal Code (CNP)", "1850101123456", "1850101123450");
-        yield return new TestCaseData("Croatian OIB", "12345678901", "12345678900");
-        yield return new TestCaseData("Slovenian EMSO", "0101985123456", "0101985123450");
-        yield return new TestCaseData("Lithuanian Personal Code", "38501011234", "38501011230");
-        yield return new TestCaseData("Latvian Personal Code", "010185-12345", "010185-12340");
-        yield return new TestCaseData("Estonian Personal ID", "38501011234", "38501011230");
+        yield return new TestCaseData("Irish PPSN", "1234567U", "1234567Z");
+        yield return new TestCaseData("Greek Tax Number (AFM)", "123456783", "123456780");
+        yield return new TestCaseData("Czech Birth Number", "850101/0012", "851301/0012");
+        yield return new TestCaseData("Romanian Personal Code (CNP)", "1850101123451", "1850101123450");
+        yield return new TestCaseData("Croatian OIB", "12345678909", "12345678900");
+        yield return new TestCaseData("Slovenian EMSO", "0101985123455", "0101985123450");
+        yield return new TestCaseData("Lithuanian Personal Code", "38501010002", "38501010000");
+        yield return new TestCaseData("Latvian Personal Code", "010190-12348", "010190-12340");
+        yield return new TestCaseData("Estonian Personal ID", "38501010002", "38501010000");
         yield return new TestCaseData("GPS Coordinates", "Posizione: 41.9028, 12.4964", "Posizione: 999.9, 200.0");
         yield return new TestCaseData("EU Vehicle License Plate", "Targa: AB123CD", "Targa: 123456");
         yield return new TestCaseData("PNR / Booking Code", "PNR: ABC123", "PNR: 12345");
@@ -181,7 +181,10 @@ public class YamlAndValidatorIntegrationTests
     [TestCaseSource(nameof(CountryRuleTestCases))]
     public void Analyzer_Detects_Valid_Structures(string category, string validInput, string invalidInput)
     {
-        var validRes = _analyzer.Analyze($"ID: {validInput}");
+        // Bare numeric formats (requires_context) only count with a domain keyword nearby.
+        var kw = _yamlDoc.Countries.SelectMany(c => c.Rules)
+            .FirstOrDefault(r => r.Category == category)?.ContextKeywords?.FirstOrDefault() ?? "ID";
+        var validRes = _analyzer.Analyze($"{kw}: {validInput}");
 
          Assert.That(validRes.DetectedCategories, Does.Contain(category),
             $"Text '{validInput}' should be detected as '{category}'");
@@ -194,8 +197,8 @@ public class YamlAndValidatorIntegrationTests
     public void Masking_Replaces_All_Detected_PII()
     {
         _analyzer.EnableAutoMasking = true;
-        var result = _analyzer.Analyze("CF: RSSMRA85T10H501Z | IBAN: IT60X0542811101000000123456 | Email: test@x.com");
-        Assert.That(result.MaskedText, Does.Not.Contain("RSSMRA85T10H501Z"));
+        var result = _analyzer.Analyze("CF: RSSMRA80A01H501U | IBAN: IT60X0542811101000000123456 | Email: test@x.com");
+        Assert.That(result.MaskedText, Does.Not.Contain("RSSMRA80A01H501U"));
         Assert.That(result.MaskedText, Does.Not.Contain("IT60X0542811101000000123456"));
         Assert.That(result.MaskedText, Does.Not.Contain("test@x.com"));
         Assert.That(result.MaskedText, Does.Contain("[ITALIAN TAX CODE (CF)]"));
@@ -220,9 +223,9 @@ public class YamlAndValidatorIntegrationTests
     {
         // Text with PII from 8 different countries (4 pre-existing + 4 new) in a single block:
         // verifies that every category is detected without pattern/validator collisions.
-        var text = "IT-CF: RSSMRA85T10H501Z | DE-IBAN: DE89370400440532013000 | " +
+        var text = "IT-CF: RSSMRA80A01H501U | DE-IBAN: DE89370400440532013000 | " +
                     "UK-NINO: AB123456C | CH-AHV: 756.1234.5678.97 | " +
-                    "CN-ID: 110105198001011238 | RU-INN: 500100732259";
+                    "CN-ID: 110105198001011238 | RU-INN: taxpayer id 500100732259";
 
         var result = _analyzer.Analyze(text);
 

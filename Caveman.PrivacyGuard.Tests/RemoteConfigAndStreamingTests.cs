@@ -91,7 +91,7 @@ public class AnalyzeStreamTests
     public async Task AnalyzeStreamAsync_MatchesAnalyzeBatch_ForSameInputs()
     {
         var analyzer = new PrivacyAnalyzer();
-        var inputs = new[] { "CF: RSSMRA85T10H501Z", "IBAN: IT60X0542811101000000123456" };
+        var inputs = new[] { "CF: RSSMRA80A01H501U", "IBAN: IT60X0542811101000000123456" };
 
         var batch = analyzer.AnalyzeBatch(inputs);
 

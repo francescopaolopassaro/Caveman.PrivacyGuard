@@ -287,6 +287,19 @@ var result = DocumentMasker.MaskFile("contacts.csv", session: session);
 // result.OutputPath → "contacts.masked.csv", result.MaskedMatchCount → total PII matches
 ```
 
+## Fewer false positives, and an optional ML tier (v1.3.1 / v1.4.0)
+
+**A bare number in prose is not PII.** Since 1.3.1 a match only counts when it is *confirmed*: a value that fails its checksum is never detected or masked, and a rule marked `requires_context` (every bare numeric format: phone, PESEL, BSN, OIB, CNP, ...) additionally needs one of its `context_keywords` within 25 characters - short keywords match as whole words, so `tel` is not confirmed by "hotel". A `+`-prefixed number is E.164 by definition and needs no keyword. Structurally anchored rules (e-mail, IBAN, codice fiscale, NINO, ...) are unaffected.
+
+**Optional learned confirmation (1.4.0).** `PrivacyAnalyzer.MlDetector` accepts any `IMlEntityDetector`; the [`CavemanML`](https://www.nuget.org/packages/CavemanML) package ships *PrivacyGuardML*, a small offline model that recognises PII by shape and context:
+
+```csharp
+using var analyzer = new PrivacyAnalyzer { MlDetector = await PrivacyGuardMLDetector.LoadAsync() };
+var r = analyzer.Analyze("ssn 123-45-6789 lo trovi nel file");   // r.MlAssistedCount == 1
+```
+
+The model is only a *confirmation signal*: it can recover a bare value the context gate rejected (when an overlapping span has the right label), it can **never** override a failed checksum, and without a detector nothing changes.
+
 ## ⚙️ Advanced Configuration
 
 ### Whitelist (Safe Exclusions)

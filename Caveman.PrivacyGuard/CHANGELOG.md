@@ -1,5 +1,28 @@
 # Changelog
 
+## [1.4.0] - 2026-10-11
+
+### Added
+- **Optional ML confirmation tier.** `IMlEntityDetector`, `MlSpan` and `PrivacyAnalyzer.MlDetector`: a learned detector (the PrivacyGuardML model shipped by the CavemanML package) can confirm a bare value that matches a `requires_context` rule but has no context keyword nearby, when an overlapping span carries the right label (`MlLabelCategories`: a "phone number" span can never confirm an ID rule). **A failed checksum still vetoes the detection** whatever the model says, so the tier can only recover recall the strict gate trades away. Off by default; a detector that throws falls back to regex-only analysis. `PrivacyAnalysisResult.MlAssistedCount` reports how many matches the ML tier confirmed.
+
+## [1.3.1] - 2026-10-11
+
+False-positive hardening ported from Synthelion 1.2.5 (`privacy_analyzer.py`, rules schema 2.1).
+
+### Fixed
+- **A bare number in prose was read as national-ID/PII and masked.** Any 7-15 digit run matched Phone E.164, any 8-digit run the Maltese ID, any 9-13 digit run PESEL/OIB/EGN/BSN/etc.; because a modulo-11 checksum passes ~1 in 10 random numbers, even "validated" matches were mostly false positives.
+- **Failed checksums were still detected and masked.** A match whose validator returned false still counted toward category, score and `MaskedText`. Only checksum-confirmed matches are detected and masked now.
+- **Maltese ID** pattern tightened to the real format (7 digits + trailing letter).
+- **Short context keywords match as whole words** (`tel` no longer confirmed by "hotel", `nn` by "annual"); long/multi-word keywords stay substring-based. "nummer" removed from phone keywords.
+- Swedish Personal ID validator now accepts the 12-digit form (century dropped) that its own pattern matches.
+
+### Added
+- `requires_context` rule field (YAML/JSON, `rules.yaml` version 2.1, `CompiledRule.RequiresContext`): the match counts only when a `context_keywords` term appears within 25 chars of it (and its checksum passes, if any). Applied to every bare numeric rule. A `+`-prefixed phone is E.164 by definition and needs no keyword.
+- Phone and credit-card patterns accept one space/dot/dash separator between digits ("+39 333 1234567", "4539 1488 0343 6467").
+
+### Testing
+- Existing fixtures used checksum-invalid sample IDs; replaced with valid ones. New tests for bare numbers, failed checksums, `+` phones and whole-word keywords (266/266).
+
 ## [1.3.0] - 2026-08-13
 
 Synthelion 1.2.5 streaming & document masking port (Synthelion is the Python port of Caveman.PrivacyGuard's analyzer; this release brings its `privacy_stream.py` / `document_extractor.py` behaviours back into the .NET library, dependency-free).

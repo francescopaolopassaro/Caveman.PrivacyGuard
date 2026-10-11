@@ -30,7 +30,7 @@ public class PrivacyAnalyzerTests
     [Test]
     public void Analyze_ComplianceFlags_AreCorrect()
     {
-        var text = "CF: RSSMRA85T10H501Z IBAN: IT60X0542811101000000123456 password: MyS3cret!";
+        var text = "CF: RSSMRA80A01H501U IBAN: IT60X0542811101000000123456 password: MyS3cret!";
         var result = _analyzer.Analyze(text);
 
 
@@ -39,10 +39,42 @@ public class PrivacyAnalyzerTests
         Assert.That(result.ComplianceFlags, Does.Contain("NIST 800-53 - Credentials & Secrets"));
     }
 
+    [TestCase("The invoice total is 1234567890 euro")]
+    [TestCase("Order reference 12345678 shipped")]
+    [TestCase("We counted 85010112345 events")]
+    [TestCase("hotel 5551234 annual 80010100107")]
+    public void Analyze_BareNumberInProse_IsNotPii(string text)
+    {
+        var result = _analyzer.Analyze(text);
+        Assert.That(result.DetectedCategories, Is.Empty, string.Join(",", result.DetectedCategories));
+    }
+
+    [Test]
+    public void Analyze_FailedChecksum_IsNeitherDetectedNorMasked()
+    {
+        _analyzer.EnableAutoMasking = true;
+        var result = _analyzer.Analyze("CF: RSSMRA85T10H501Z");
+        Assert.That(result.DetectedCategories, Does.Not.Contain("Italian Tax Code (CF)"));
+        Assert.That(result.MaskedText, Does.Contain("RSSMRA85T10H501Z"));
+    }
+
+    [Test]
+    public void Analyze_PlusPrefixedPhone_NeedsNoKeyword()
+    {
+        Assert.That(_analyzer.Analyze("call +39 333 1234567 now").DetectedCategories, Does.Contain("Phone E.164"));
+    }
+
+    [Test]
+    public void Analyze_ShortKeyword_MustBeWholeWord()
+    {
+        Assert.That(_analyzer.Analyze("hotel 5551234").DetectedCategories, Does.Not.Contain("Phone E.164"));
+        Assert.That(_analyzer.Analyze("tel 5551234").DetectedCategories, Does.Contain("Phone E.164"));
+    }
+
     [Test]
     public void Analyze_GermanSteuerId_DetectedCorrectly()
     {
-        var text = "Steuer-Identifikationsnummer: 12345678901";
+        var text = "Steuer-ID: 12345678901";
         var result = _analyzer.Analyze(text);
         Assert.That(result.DetectedCategories, Does.Contain("German Tax ID (Steuer-Id)"));
     }
@@ -50,7 +82,7 @@ public class PrivacyAnalyzerTests
     [Test]
     public void Analyze_FrenchNIR_DetectedCorrectly()
     {
-        var text = "Numéro Sécurité Sociale: 1 85 12 75 001 234 56";
+        var text = "Numéro Sécurité Sociale: 1 85 01 75 001 234 11";
         var result = _analyzer.Analyze(text);
         Assert.That(result.DetectedCategories, Does.Contain("French Social Security (NIR)"));
     }
@@ -67,18 +99,18 @@ public class PrivacyAnalyzerTests
     public void Analyze_WithMaskingEnabled_ReturnsMaskedText()
     {
         _analyzer.EnableAutoMasking = true;
-        var result = _analyzer.Analyze("Email: test@example.com, CF: RSSMRA85T10H501Z");
+        var result = _analyzer.Analyze("Email: test@example.com, CF: RSSMRA80A01H501U");
         Assert.That(result.MaskedText, Does.Contain("[EMAIL]"));
         Assert.That(result.MaskedText, Does.Contain("[ITALIAN TAX CODE (CF)]"));
         Assert.That(result.MaskedText, Does.Not.Contain("test@example.com"));
-        Assert.That(result.MaskedText, Does.Not.Contain("RSSMRA85T10H501Z"));
+        Assert.That(result.MaskedText, Does.Not.Contain("RSSMRA80A01H501U"));
     }
 
     [Test]
     public void Analyze_WithWhitelist_IgnoresMatchedValues()
     {
         _analyzer.AddToWhitelist("safe@company.com");
-        var result = _analyzer.Analyze("Email: safe@company.com, CF: RSSMRA85T10H501Z");
+        var result = _analyzer.Analyze("Email: safe@company.com, CF: RSSMRA80A01H501U");
 
         Assert.That(result.DetectedCategories, Does.Not.Contain("Email"));
         Assert.That(result.DetectedCategories, Does.Contain("Italian Tax Code (CF)"));
@@ -108,7 +140,7 @@ public class PrivacyAnalyzerTests
     [Test]
     public void Analyze_MultiplePII_ReturnsHighScore()
     {
-        var text = "CF: RSSMRA85T10H501Z, IBAN: IT60X0542811101000000123456, email: test@x.com, tel: +393331234567";
+        var text = "CF: RSSMRA80A01H501U, IBAN: IT60X0542811101000000123456, email: test@x.com, tel: +393331234567";
         var result = _analyzer.Analyze(text);
         Assert.That(result.Score, Is.GreaterThan(60));
         Assert.That(result.DetectedCategories.Count, Is.GreaterThanOrEqualTo(3));
@@ -122,7 +154,7 @@ public class PrivacyAnalyzerTests
         Assert.That(safeResult.IsSafeForAI, Is.True);
 
         // Punteggio alto -> non sicuro
-        var unsafeResult = _analyzer.Analyze("CF: RSSMRA85T10H501Z email: a@b.com IBAN: IT60X0542811101000000123456");
+        var unsafeResult = _analyzer.Analyze("CF: RSSMRA80A01H501U email: a@b.com IBAN: IT60X0542811101000000123456");
         Assert.That(unsafeResult.IsSafeForAI, Is.False);
     }
 
@@ -149,7 +181,7 @@ public class PrivacyAnalyzerTests
     {
         _analyzer.EnableAutoMasking = true;
         var session = new PrivacySession();
-        var result = _analyzer.Analyze("Email: test@example.com, CF: RSSMRA85T10H501Z", "en", session);
+        var result = _analyzer.Analyze("Email: test@example.com, CF: RSSMRA80A01H501U", "en", session);
 
         Assert.That(result.Session, Is.Not.Null);
 
@@ -169,14 +201,14 @@ public class PrivacyAnalyzerTests
     {
         _analyzer.EnableAutoMasking = true;
         var session = new PrivacySession();
-        var result = _analyzer.Analyze("Email: test@example.com, CF: RSSMRA85T10H501Z, IBAN: IT60X0542811101000000123456", "en", session);
+        var result = _analyzer.Analyze("Email: test@example.com, CF: RSSMRA80A01H501U, IBAN: IT60X0542811101000000123456", "en", session);
 
         var entries = session.GetAll();
         var aiResponse = string.Join(" ", entries.Keys.Select(k => $"Data: {k}"));
         var restored = session.Restore(aiResponse);
 
         Assert.That(restored, Does.Contain("test@example.com"));
-        Assert.That(restored, Does.Contain("RSSMRA85T10H501Z"));
+        Assert.That(restored, Does.Contain("RSSMRA80A01H501U"));
         Assert.That(restored, Does.Contain("IT60X0542811101000000123456"));
     }
 

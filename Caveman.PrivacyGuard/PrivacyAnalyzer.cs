@@ -47,6 +47,9 @@ public record PrivacyAnalysisResult
     /// <summary>True if score &le; 15 (safe to send to AI).</summary>
     public bool IsSafeForAI => Score <= 15;
 
+    /// <summary>Matches confirmed by the optional ML tier instead of a context keyword (0 unless <see cref="PrivacyAnalyzer.MlDetector"/> is set).</summary>
+    public int MlAssistedCount { get; init; }
+
     /// <summary>Total number of PII matches found.</summary>
     public int MatchCount { get; init; }
 
@@ -78,7 +81,9 @@ public record CompiledRule(
     /// <summary>Whether this rule produces high-confidence matches.</summary>
     bool IsHighConfidence,
     /// <summary>Compliance framework tags (GDPR, PCI-DSS, etc.).</summary>
-    string[] ComplianceTags
+    string[] ComplianceTags,
+    /// <summary>When true, a match only counts when a context keyword appears near it (bare numeric formats).</summary>
+    bool RequiresContext = false
 );
 
 /// <summary>
@@ -101,6 +106,12 @@ public class PrivacyAnalyzer : IDisposable
 
     /// <summary>Optional session for tracking placeholder-to-original mappings. Used by Analyze() overloads without explicit session.</summary>
     public PrivacySession? CurrentSession { get; set; }
+
+    /// <summary>
+    /// Optional learned detector (see <see cref="IMlEntityDetector"/>). When set, a match of a <c>requires_context</c> rule that has
+    /// no context keyword nearby is confirmed by an overlapping ML span of the right label. Off by default; a failed checksum always vetoes.
+    /// </summary>
+    public IMlEntityDetector? MlDetector { get; set; }
 
     /// <summary>Optional logger for diagnostic events during analysis and configuration loading.</summary>
     public ILogger? Logger { get; set; }
@@ -208,7 +219,15 @@ public class PrivacyAnalyzer : IDisposable
 
         var normalized = NormalizeNewlines(input);
         var detected = new Dictionary<string, (int count, bool validated)>();
-        int baseScore = 0, totalMatches = 0;
+        int baseScore = 0, totalMatches = 0, mlAssisted = 0;
+
+        IReadOnlyList<MlSpan>? mlSpans = null;
+        var mlDetector = MlDetector;
+        if (mlDetector != null)
+        {
+            try { mlSpans = mlDetector.Detect(normalized); }
+            catch (Exception ex) { Logger?.LogWarning(ex, "ML detector failed; falling back to regex-only analysis"); }
+        }
 
         _lock.EnterReadLock();
         try
@@ -222,9 +241,10 @@ public class PrivacyAnalyzer : IDisposable
                 foreach (Match m in matches)
                 {
                     if (_whitelist.Contains(m.Value)) continue;
-                    bool isValid = rule.Validator?.Invoke(m.Value) ?? true;
-                    if (isValid) anyValid = true;
+                    if (!IsMatchConfirmed(rule, m, normalized, mlSpans)) continue;
+                    anyValid = true;
                     ruleMatches++; totalMatches++;
+                    if (rule.RequiresContext && mlSpans != null && !ContextIsOk(rule, m, normalized)) mlAssisted++;
                 }
 
                 if (ruleMatches > 0)
@@ -252,6 +272,7 @@ public class PrivacyAnalyzer : IDisposable
             ComplianceFlags = MapComplianceFlags(detected.Keys),
             WarningMessage = GenerateWarning(finalScore, detected, loc),
             MatchCount = totalMatches,
+            MlAssistedCount = mlAssisted,
             DensityScore = densityBonus,
             MaskedText = string.Empty,
             Session = EnableAutoMasking ? session : null
@@ -259,7 +280,7 @@ public class PrivacyAnalyzer : IDisposable
 
         if (EnableAutoMasking)
         {
-            var masked = MaskText(normalized, detected, session);
+            var masked = MaskText(normalized, detected, session, mlSpans);
             result = result with
             {
                 MaskedText = masked,
@@ -489,7 +510,7 @@ public class PrivacyAnalyzer : IDisposable
                             validator = v;
 
                         var regex = new Regex(rule.Pattern, RegexHelper.CompiledAndSafe, RegexHelper.RegexTimeout);
-                        _rules.Add(new CompiledRule(rule.Category, regex, rule.BaseWeight, validator, rule.ContextKeywords, rule.IsHighConfidence, rule.ComplianceTags ?? Array.Empty<string>()));
+                        _rules.Add(new CompiledRule(rule.Category, regex, rule.BaseWeight, validator, rule.ContextKeywords, rule.IsHighConfidence, rule.ComplianceTags ?? Array.Empty<string>(), rule.RequiresContext));
                     }
 #if NET8_0_OR_GREATER
                     catch (RegexParseException ex)
@@ -555,7 +576,7 @@ public class PrivacyAnalyzer : IDisposable
                             RegexHelper.CompiledAndSafe,
                             RegexHelper.RegexTimeout);
 
-                        _rules.Add(new CompiledRule(rule.Category, regex, rule.BaseWeight, validator, rule.ContextKeywords, rule.IsHighConfidence, rule.ComplianceTags));
+                        _rules.Add(new CompiledRule(rule.Category, regex, rule.BaseWeight, validator, rule.ContextKeywords, rule.IsHighConfidence, rule.ComplianceTags, rule.RequiresContext));
                     }
 #if NET8_0_OR_GREATER
                     catch (RegexParseException ex)
@@ -736,7 +757,7 @@ public class PrivacyAnalyzer : IDisposable
     #endregion
 
     #region Masking & Utils
-    private string MaskText(string input, Dictionary<string, (int, bool)> detected, PrivacySession? session = null)
+    private string MaskText(string input, Dictionary<string, (int, bool)> detected, PrivacySession? session = null, IReadOnlyList<MlSpan>? mlSpans = null)
     {
         var intervals = new List<(int Start, int End, string Category, string Value)>();
         _lock.EnterReadLock();
@@ -748,6 +769,7 @@ public class PrivacyAnalyzer : IDisposable
                 foreach (Match m in rule.Pattern.Matches(input))
                 {
                     if (_whitelist.Contains(m.Value)) continue;
+                    if (!IsMatchConfirmed(rule, m, input, mlSpans)) continue;
                     intervals.Add((m.Index, m.Index + m.Length, rule.Category, m.Value));
                 }
             }
@@ -781,6 +803,60 @@ public class PrivacyAnalyzer : IDisposable
         return sb.ToString();
     }
 
+
+    // Context window (chars each side of a match) and the keyword length under which a
+    // keyword must stand as a whole word: a bare "tel" would match "hotel", "nn" would
+    // match "annual". Long/multi-word keywords stay substring-based.
+    private const int ContextWindow = 25;
+    private const int KeywordWordLen = 6;
+
+    private static bool KeywordInWindow(string keyword, string window)
+    {
+        if (keyword.Length >= KeywordWordLen)
+            return window.Contains(keyword);
+        int idx = 0;
+        while ((idx = window.IndexOf(keyword, idx, StringComparison.Ordinal)) >= 0)
+        {
+            bool leftOk = idx == 0 || !IsWordChar(window[idx - 1]);
+            int end = idx + keyword.Length;
+            bool rightOk = end >= window.Length || !IsWordChar(window[end]);
+            if (leftOk && rightOk) return true;
+            idx++;
+        }
+        return false;
+    }
+
+    private static bool IsWordChar(char c) => char.IsLetterOrDigit(c) || c == '_';
+
+    private static bool ContextIsOk(CompiledRule rule, Match m, string text)
+    {
+        if (rule.ContextKeywords == null || rule.ContextKeywords.Length == 0) return false;
+        // A '+'-prefixed phone is E.164 by definition and needs no prose keyword.
+        if (rule.Category == "Phone E.164" && m.Value.StartsWith("+", StringComparison.Ordinal)) return true;
+        int start = Math.Max(0, m.Index - ContextWindow);
+        int end = Math.Min(text.Length, m.Index + m.Length + ContextWindow);
+        string window = text.Substring(start, end - start).ToLowerInvariant();
+        return rule.ContextKeywords.Any(k => KeywordInWindow(k, window));
+    }
+
+    /// <summary>
+    /// Only confirmed matches are detected and masked: a match that fails the rule's checksum is
+    /// never PII, and a <c>requires_context</c> rule (bare numeric formats) additionally needs a
+    /// context keyword nearby. Structurally anchored rules (Email, IBAN, ...) need neither.
+    /// </summary>
+    private static bool IsMatchConfirmed(CompiledRule rule, Match m, string text, IReadOnlyList<MlSpan>? mlSpans = null)
+    {
+        // The algorithmic validator is the ground truth: the optional ML tier can never override it.
+        if (rule.Validator != null && !rule.Validator(m.Value)) return false;
+        if (!rule.RequiresContext) return true;
+        if (ContextIsOk(rule, m, text)) return true;
+        // ML only ever confirms a gated rule whose checksum passed but whose context keyword is missing - and only when the
+        // span's entity label points at this rule's category (a "national ID" span must not confirm a phone detection).
+        if (mlSpans == null || mlSpans.Count == 0) return false;
+        var end = m.Index + m.Length;
+        return mlSpans.Any(sp => sp.Start < end && sp.End > m.Index && MlLabelCategories.Allows(sp.Label, rule.Category));
+    }
+
     private double CalculateContextBoost(string input, Dictionary<string, (int, bool)> detected)
     {
         double boost = 0;
@@ -792,7 +868,7 @@ public class PrivacyAnalyzer : IDisposable
                 int start = Math.Max(0, m.Index - 25);
                 int end = Math.Min(input.Length, m.Index + m.Length + 25);
                 string window = input.Substring(start, end - start).ToLowerInvariant();
-                if (rule.ContextKeywords!.Any(k => window.Contains(k))) boost += 0.12;
+                if (rule.ContextKeywords!.Any(k => KeywordInWindow(k, window))) boost += 0.12;
             }
         }
         return Math.Min(boost, 1.0);

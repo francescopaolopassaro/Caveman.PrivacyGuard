@@ -60,4 +60,7 @@ public class RuleEntry
 
     [YamlMember(Alias = "compliance_tags")]
     public string[] ComplianceTags { get; set; } = Array.Empty<string>();
+
+    [YamlMember(Alias = "requires_context")]
+    public bool RequiresContext { get; set; }
 }

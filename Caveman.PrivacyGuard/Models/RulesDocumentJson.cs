@@ -58,4 +58,7 @@ internal class RuleEntryJson
 
     [JsonPropertyName("compliance_tags")]
     public string[]? ComplianceTags { get; set; }
+
+    [JsonPropertyName("requires_context")]
+    public bool RequiresContext { get; set; }
 }
