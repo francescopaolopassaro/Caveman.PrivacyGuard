@@ -63,16 +63,5 @@ Fork the repo, add rules to `rules.yaml` + validators to `ValidatorRegistry.cs`,
 
 MIT — see [LICENSE](Caveman.PrivacyGuard/LICENSE).
 
-## Technology Partnership
-
-<img src="https://www.digitalsolutions.it/img/partners/novaroutelogo.png" alt="NovaRouteAI" height="180" style="max-width: 100%; height: auto; min-height: 180px; max-height: 190px;">
-
-**[NovaRouteAI](https://novarouteai.com/?ref=synthelion)** — Build with Chinese AI models through one simple API.
-
-NovaRouteAI helps developers and AI SaaS teams test, compare, and run models like DeepSeek, Qwen, Doubao, Kimi, and GLM without managing multiple provider accounts. Start with test credits and optimize your cost per successful task.
-
-[Click here to know NovaRouteAI](https://novarouteai.com/?ref=synthelion)
-
----
 
 # 🛡️ Protect data, enable AI. Compliance by design.
