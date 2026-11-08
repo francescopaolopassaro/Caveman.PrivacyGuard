@@ -40,7 +40,9 @@ jobs:
         with:
           dotnet-version: 10.0.x
       - name: Pack
-        run: dotnet pack Caveman.PrivacyGuard/Caveman.PrivacyGuard.csproj -c Release -o out
+        run: |
+          dotnet build Caveman.PrivacyGuard/Caveman.PrivacyGuard.csproj -c Release
+          mkdir out && cp Caveman.PrivacyGuard/bin/Release/Caveman.PrivacyGuard.*.nupkg out/
       - name: Check the NuGet readme (text and tables only)
         run: |
           unzip -p out/Caveman.PrivacyGuard.*.nupkg README.nuget.md > readme.check
@@ -65,7 +67,9 @@ jobs:
       - name: Add GitHub Packages as a package source (the core is restored from there)
         run: dotnet nuget add source "https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json" --name github --username "${{ github.repository_owner }}" --password "${{ secrets.GITHUB_TOKEN }}" --store-password-in-clear-text
       - name: Pack
-        run: dotnet pack Caveman.PrivacyGuard.Mcp/Caveman.PrivacyGuard.Mcp.csproj -c Release -o out
+        run: |
+          dotnet build Caveman.PrivacyGuard.Mcp/Caveman.PrivacyGuard.Mcp.csproj -c Release
+          mkdir out && cp Caveman.PrivacyGuard.Mcp/bin/Release/Caveman.PrivacyGuard.Mcp.*.nupkg out/
       - name: Push to GitHub Packages
         run: dotnet nuget push out/*.nupkg --api-key "${{ secrets.GITHUB_TOKEN }}" --source "https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json" --skip-duplicate
       - uses: softprops/action-gh-release@v2
