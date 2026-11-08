@@ -2,6 +2,8 @@
 
 MCP (Model Context Protocol) server for [Caveman.PrivacyGuard](https://www.nuget.org/packages/Caveman.PrivacyGuard) — exposes PII detection/masking, session-based restore, AI-transparency notices, and prompt-injection screening as MCP tools for Claude Code, OpenCode, Cursor, and any MCP-compatible agent.
 
+Version 1.5.0 is a real **.NET tool** (`dotnet tool install --global Caveman.PrivacyGuard.Mcp`, command `caveman-privacyguard-mcp`), targets **.NET 10** and uses Caveman.PrivacyGuard 1.5.0: fewer false positives (a number next to "invoice", "order" or "article code" is not a phone number) and new detections (printed IBAN, IP addresses, URLs, amounts, dates of birth, protocol numbers) in `analyze_text` and `mask_text`.
+
 ## Tools
 
 | Tool | Description |

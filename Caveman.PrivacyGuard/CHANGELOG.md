@@ -1,5 +1,24 @@
 # Changelog
 
+## [1.5.0] - 2026-11-08
+
+### Added
+- **Negative context (anti-triggers).** A bare numeric candidate is rejected when an anti-trigger word (invoice, order, article code, protocol, serial, SKU, tracking, reference, batch, year... in Italian, English, French, German, Spanish, Portuguese, Dutch and Polish) is closer to it than every context keyword of the rule. Labels before the number decide first and a rule keyword wins a tie, so "numero di telefono 3389123456, anno 2024" is still a phone while "numero fattura 3389123456" is not. A `+`-prefixed phone is never vetoed. New: `PrivacyAnalyzer.UseNegativeContext` (default `true`), `AddNegativeKeywords(...)`, `negative_keywords` on a rule and `global_negative_keywords` on a rules document (YAML and JSON), `CompiledRule.NegativeKeywords`.
+- **IBAN in printed form** (`IT60 X054 2811 1010 0000 0123 456`, groups separated by space, dot or dash): the match consumes exactly the ISO 13616 length of the country, then the mod-97 validator decides. Previously a grouped IBAN was left in clear text.
+- **IP Address** rule (IPv4, CIDR and ranges, octets 0-255, network keyword required), **URL** rule (scheme, `www.` and bare domains with a known TLD; trailing punctuation excluded; the domain of an e-mail is skipped), **Monetary Amount** rule, **Date of Birth** rule (birth keyword required) and **Document Protocol Number** rule (`Prot. n. 456/2024`, `Rep.`, `protocollo`).
+- More phone keywords: cellulare, whatsapp, chiamami, chiamarmi, handy, portable, móvil, celular, telefoon, telemóvel and others; a mobile typed as "cellulare 3389123456" was previously missed.
+
+### Changed
+- **Framework: .NET 10** (`net10.0`), together with `netstandard2.0`. `System.Text.Json` is referenced only for netstandard2.0.
+- Credit-card numbers are also recognized with dots as separators; the IBAN validator ignores space, dot and dash.
+- Phone numbers starting with 0 (landlines) are matched whole instead of leaving the prefix in clear text.
+
+### Fixed
+- **Italian VAT checksum.** The weights were inverted, so real VAT numbers (for example 00743110157) failed validation; the bare 11-digit pattern also required a leading `I` and could never match without the `IT` prefix. Both corrected; the test vectors that encoded the wrong weights were fixed.
+
+### Testing
+- 44 new tests (anti-triggers, printed IBAN, IP, URL, amounts, birth dates, protocol numbers, VAT). Full suite: 310/310 passing on .NET 10.
+
 ## [1.4.0] - 2026-10-11
 
 ### Added

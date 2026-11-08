@@ -83,7 +83,9 @@ public record CompiledRule(
     /// <summary>Compliance framework tags (GDPR, PCI-DSS, etc.).</summary>
     string[] ComplianceTags,
     /// <summary>When true, a match only counts when a context keyword appears near it (bare numeric formats).</summary>
-    bool RequiresContext = false
+    bool RequiresContext = false,
+    /// <summary>Anti-trigger words for this rule (merged with the analyzer's global negative keywords).</summary>
+    string[]? NegativeKeywords = null
 );
 
 /// <summary>
@@ -234,7 +236,7 @@ public class PrivacyAnalyzer : IDisposable
         {
             foreach (var rule in _rules)
             {
-                var matches = rule.Pattern.Matches(normalized);
+                var matches = FindMatches(rule, normalized);
                 if (matches.Count == 0) continue;
 
                 int ruleMatches = 0; bool anyValid = false;
@@ -499,6 +501,7 @@ public class PrivacyAnalyzer : IDisposable
         try
         {
             if (replace) _rules.Clear();
+            foreach (var k in doc.GlobalNegativeKeywords ?? new()) AddNegative(k);
             foreach (var country in doc.Countries)
             {
                 foreach (var rule in country.Rules)
@@ -510,7 +513,7 @@ public class PrivacyAnalyzer : IDisposable
                             validator = v;
 
                         var regex = new Regex(rule.Pattern, RegexHelper.CompiledAndSafe, RegexHelper.RegexTimeout);
-                        _rules.Add(new CompiledRule(rule.Category, regex, rule.BaseWeight, validator, rule.ContextKeywords, rule.IsHighConfidence, rule.ComplianceTags ?? Array.Empty<string>(), rule.RequiresContext));
+                        _rules.Add(new CompiledRule(rule.Category, regex, rule.BaseWeight, validator, rule.ContextKeywords, rule.IsHighConfidence, rule.ComplianceTags ?? Array.Empty<string>(), rule.RequiresContext, rule.NegativeKeywords));
                     }
 #if NET8_0_OR_GREATER
                     catch (RegexParseException ex)
@@ -561,6 +564,7 @@ public class PrivacyAnalyzer : IDisposable
         try
         {
             if (replace) _rules.Clear();
+            foreach (var k in doc.GlobalNegativeKeywords ?? new()) AddNegative(k);
 
             foreach (var country in doc.Countries)
             {
@@ -576,7 +580,7 @@ public class PrivacyAnalyzer : IDisposable
                             RegexHelper.CompiledAndSafe,
                             RegexHelper.RegexTimeout);
 
-                        _rules.Add(new CompiledRule(rule.Category, regex, rule.BaseWeight, validator, rule.ContextKeywords, rule.IsHighConfidence, rule.ComplianceTags, rule.RequiresContext));
+                        _rules.Add(new CompiledRule(rule.Category, regex, rule.BaseWeight, validator, rule.ContextKeywords, rule.IsHighConfidence, rule.ComplianceTags, rule.RequiresContext, rule.NegativeKeywords));
                     }
 #if NET8_0_OR_GREATER
                     catch (RegexParseException ex)
@@ -766,7 +770,7 @@ public class PrivacyAnalyzer : IDisposable
             foreach (var rule in _rules)
             {
                 if (!detected.ContainsKey(rule.Category)) continue;
-                foreach (Match m in rule.Pattern.Matches(input))
+                foreach (Match m in FindMatches(rule, input))
                 {
                     if (_whitelist.Contains(m.Value)) continue;
                     if (!IsMatchConfirmed(rule, m, input, mlSpans)) continue;
@@ -828,6 +832,132 @@ public class PrivacyAnalyzer : IDisposable
 
     private static bool IsWordChar(char c) => char.IsLetterOrDigit(c) || c == '_';
 
+    // ISO 13616 IBAN length per country. Needed to know WHERE a printed (grouped) IBAN ends: guessing the right
+    // edge either swallows the next word or stops halfway and leaves the tail of the IBAN in clear text.
+    private static readonly Dictionary<string, int> IbanLength = ("AD24 AE23 AL28 AT20 AZ28 BA20 BE16 BG22 BH22 BI27 BR29 BY28 CH21 CR22 CY28 CZ24 " +
+        "DE22 DJ27 DK18 DO28 EE20 EG29 ES24 FI18 FK18 FO18 FR27 GB22 GE22 GI23 GL18 GR27 GT28 HN28 HR21 HU28 IE22 IL23 IQ23 IS26 " +
+        "IT27 JO30 KW30 KZ20 LB28 LC32 LI21 LT20 LU20 LV21 LY25 MC27 MD24 ME22 MK19 MN20 MR27 MT31 MU30 NI28 NL18 NO15 OM23 PK24 " +
+        "PL28 PS29 PT25 QA29 RO24 RS22 RU33 SA24 SC31 SD18 SE24 SI19 SK24 SM27 SO23 ST25 SV28 TL23 TN24 TR26 UA29 VA22 VG24 XK20 YE30")
+        .Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries)
+        .ToDictionary(c => c.Substring(0, 2), c => int.Parse(c.Substring(2)));
+
+    // Start of a printed IBAN: country code + check digits followed by a group separator.
+    private static readonly Regex IbanGroupedHead = new(@"\b[A-Z]{2}\d{2}[ .\-]", RegexOptions.Compiled, TimeSpan.FromSeconds(2));
+    private static readonly System.Collections.Concurrent.ConcurrentDictionary<int, Regex> IbanGroupedByLength = new();
+
+    /// <summary>All matches of a rule; the IBAN rule also yields the printed grouped form ("IT60 X054 2811 ...").</summary>
+    private static List<Match> FindMatches(CompiledRule rule, string text)
+    {
+        var list = rule.Pattern.Matches(text).Cast<Match>().ToList();
+        if (rule.Category != "IBAN") return list;
+
+        foreach (Match head in IbanGroupedHead.Matches(text))
+        {
+            if (!IbanLength.TryGetValue(head.Value.Substring(0, 2), out int n)) continue;
+            // Exactly n alphanumerics (the first 4 are the head), single optional separator between characters,
+            // and nothing alphanumeric right after: no over- or under-consumption.
+            var rx = IbanGroupedByLength.GetOrAdd(n, len => new Regex(
+                @"\G[A-Z]{2}\d{2}(?:[ .\-]?[A-Za-z0-9]){" + (len - 4) + @"}(?![A-Za-z0-9])", RegexOptions.Compiled, TimeSpan.FromSeconds(2)));
+            var m = rx.Match(text, head.Index);
+            if (m.Success && !list.Any(x => x.Index < m.Index + m.Length && m.Index < x.Index + x.Length)) list.Add(m);
+        }
+        return list.OrderBy(x => x.Index).ToList();
+    }
+
+    // Radius (chars each side) in which an anti-trigger can veto a bare numeric candidate.
+    private const int NegativeWindow = 40;
+
+    // Built-in multilingual anti-triggers: words that label a number as a catalogue / accounting / technical
+    // identifier rather than personal data. Extended by global_negative_keywords and per-rule negative_keywords.
+    private static readonly string[] DefaultNegativeKeywords =
+    {
+        // it
+        "codice articolo", "articolo", "fattura", "ordine", "protocollo", "anno", "pratica", "lotto", "matricola", "seriale", "bolla", "ddt", "preventivo", "rif", "riferimento", "cod",
+        // en
+        "invoice", "order", "article", "sku", "serial", "ticket", "tracking", "reference", "ref", "part number", "item", "batch", "lot", "version", "build", "year",
+        // fr
+        "facture", "commande", "article", "référence", "numéro de série", "lot",
+        // de
+        "rechnung", "bestellung", "artikel", "artikelnummer", "seriennummer", "referenz", "auftrag", "los",
+        // es / pt
+        "factura", "pedido", "artículo", "referencia", "número de serie", "lote", "fatura", "encomenda", "artigo", "número de série",
+        // nl / pl
+        "factuur", "bestelling", "artikelnr", "faktura", "zamówienie", "artykuł",
+        // generic
+        "id", "uuid", "guid", "pzo", "timestamp", "epoch", "codice"
+    };
+
+    private readonly HashSet<string> _negativeKeywords = new(DefaultNegativeKeywords, StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>When true (default), a bare numeric candidate is rejected when an anti-trigger word (invoice, order, article code...) sits closer to it than any of the rule's context keywords.</summary>
+    public bool UseNegativeContext { get; set; } = true;
+
+    /// <summary>Adds global anti-trigger words (lower/upper case ignored).</summary>
+    public void AddNegativeKeywords(params string[] words)
+    {
+        ThrowIfDisposed();
+        foreach (var w in words) AddNegative(w);
+    }
+
+    private void AddNegative(string? w)
+    {
+        if (!string.IsNullOrWhiteSpace(w)) lock (_negativeKeywords) _negativeKeywords.Add(w!.Trim());
+    }
+
+    private bool NegativeContextWins(CompiledRule rule, Match m, string text)
+    {
+        if (!UseNegativeContext) return false;
+        // A '+'-prefixed phone is unambiguous E.164 (same exemption as ContextIsOk).
+        if (rule.Category == "Phone E.164" && m.Value.StartsWith("+", StringComparison.Ordinal)) return false;
+
+        string[] global;
+        lock (_negativeKeywords) global = _negativeKeywords.ToArray();
+        var negs = rule.NegativeKeywords == null ? global : global.Concat(rule.NegativeKeywords).ToArray();
+        var poss = rule.ContextKeywords ?? Array.Empty<string>();
+
+        // Labels precede the value ("codice articolo 123", "telefono 333..."): the words on the LEFT decide first,
+        // so a trailing ", anno 2024" cannot cancel "numero di telefono 338...".
+        int negL = NearestKeywordDistance(negs, text, m, NegativeWindow, -1);
+        int posL = NearestKeywordDistance(poss, text, m, NegativeWindow, -1);
+        if (negL != int.MaxValue || posL != int.MaxValue)
+            return negL < posL; // ties go to the positive keyword ("codice fiscale 123")
+
+        int negR = NearestKeywordDistance(negs, text, m, NegativeWindow, +1);
+        int posR = NearestKeywordDistance(poss, text, m, ContextWindow, +1);
+        return negR < posR;
+    }
+
+    /// <summary>Distance in chars between the match and the nearest whole-word keyword occurrence within <paramref name="radius"/> (side: -1 before, +1 after, 0 both); int.MaxValue when none.</summary>
+    private static int NearestKeywordDistance(IEnumerable<string> keywords, string text, Match m, int radius, int side = 0)
+    {
+        int s = Math.Max(0, m.Index - radius);
+        int e = Math.Min(text.Length, m.Index + m.Length + radius);
+        string w = text.Substring(s, e - s).ToLowerInvariant();
+        int mStart = m.Index - s, mEnd = mStart + m.Length;
+        int best = int.MaxValue;
+        foreach (var k in keywords)
+        {
+            if (string.IsNullOrWhiteSpace(k)) continue;
+            var kl = k.ToLowerInvariant();
+            int idx = 0;
+            while ((idx = w.IndexOf(kl, idx, StringComparison.Ordinal)) >= 0)
+            {
+                int kEnd = idx + kl.Length;
+                // Same rule as KeywordInWindow: short keywords must stand alone, long ones may be a substring ("telefon" in "telefono").
+                bool wholeWord = kl.Length >= KeywordWordLen
+                    || ((idx == 0 || !IsWordChar(w[idx - 1])) && (kEnd >= w.Length || !IsWordChar(w[kEnd])));
+                bool before = kEnd <= mStart, after = idx >= mEnd;
+                if (wholeWord && ((before && side <= 0) || (after && side >= 0)))
+                {
+                    int d = kEnd <= mStart ? mStart - kEnd : idx - mEnd;
+                    if (d < best) best = d;
+                }
+                idx++;
+            }
+        }
+        return best;
+    }
+
     private static bool ContextIsOk(CompiledRule rule, Match m, string text)
     {
         if (rule.ContextKeywords == null || rule.ContextKeywords.Length == 0) return false;
@@ -844,11 +974,15 @@ public class PrivacyAnalyzer : IDisposable
     /// never PII, and a <c>requires_context</c> rule (bare numeric formats) additionally needs a
     /// context keyword nearby. Structurally anchored rules (Email, IBAN, ...) need neither.
     /// </summary>
-    private static bool IsMatchConfirmed(CompiledRule rule, Match m, string text, IReadOnlyList<MlSpan>? mlSpans = null)
+    private bool IsMatchConfirmed(CompiledRule rule, Match m, string text, IReadOnlyList<MlSpan>? mlSpans = null)
     {
         // The algorithmic validator is the ground truth: the optional ML tier can never override it.
         if (rule.Validator != null && !rule.Validator(m.Value)) return false;
+        // A bare domain right after '@' is the host part of an e-mail address, not a separate URL.
+        if (rule.Category == "URL" && m.Index > 0 && text[m.Index - 1] == '@') return false;
         if (!rule.RequiresContext) return true;
+        // Anti-trigger: "numero fattura 3389123456" has the keyword "numero" but the digits are an invoice number.
+        if (NegativeContextWins(rule, m, text)) return false;
         if (ContextIsOk(rule, m, text)) return true;
         // ML only ever confirms a gated rule whose checksum passed but whose context keyword is missing - and only when the
         // span's entity label points at this rule's category (a "national ID" span must not confirm a phone detection).
@@ -863,7 +997,7 @@ public class PrivacyAnalyzer : IDisposable
         foreach (var rule in _rules.Where(r => r.ContextKeywords?.Length > 0))
         {
             if (!detected.ContainsKey(rule.Category)) continue;
-            foreach (Match m in rule.Pattern.Matches(input))
+            foreach (Match m in FindMatches(rule, input))
             {
                 int start = Math.Max(0, m.Index - 25);
                 int end = Math.Min(input.Length, m.Index + m.Length + 25);

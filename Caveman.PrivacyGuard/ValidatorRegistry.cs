@@ -71,7 +71,7 @@ public static class ValidatorRegistry
     {
         internal static bool ValidateIBAN(string iban)
         {
-            var c = iban.Replace(" ", "").ToUpperInvariant();
+            var c = Regex.Replace(iban, @"[\s.\-]", "").ToUpperInvariant();
             if (!Regex.IsMatch(c, @"^[A-Z]{2}\d{2}[A-Z0-9]{4,30}$")) return false;
             string num = "";
             foreach (var ch in c.Substring(4) + c.Substring(0, 4))
@@ -116,7 +116,8 @@ public static class ValidatorRegistry
         {
             var c = piva.Replace("IT", "");
             if (c.Length != 11 || !c.All(char.IsDigit)) return false;
-            int[] w = { 2, 1, 2, 1, 2, 1, 2, 1, 2, 1 };
+            // Odd positions (1st, 3rd, ...) count as they are, even positions (2nd, 4th, ...) are doubled.
+            int[] w = { 1, 2, 1, 2, 1, 2, 1, 2, 1, 2 };
             int sum = 0;
             for (int i = 0; i < 10; i++) { int v = (c[i] - '0') * w[i]; sum += v > 9 ? v - 9 : v; }
             return (10 - sum % 10) % 10 == c[10] - '0';

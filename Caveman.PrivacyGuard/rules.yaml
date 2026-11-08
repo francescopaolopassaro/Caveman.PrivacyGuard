@@ -58,7 +58,7 @@ countries:
         # number typed the way people actually type it ("+39 333 1234567",
         # "555-123-4567") is still a candidate match — still gated by
         # requires_context exactly as before, this only widens the shape.
-        pattern: '\+[1-9](?:[ .-]?\d){6,14}\b|\b[1-9](?:[ .-]?\d){6,14}\b'
+        pattern: '\+[1-9](?:[ .-]?\d){6,14}\b|\b\d(?:[ .-]?\d){6,14}\b'
         base_weight: 10
         # No checksum exists for phone numbers, and the format is any 7-15 digit
         # run — a bare number in prose is not evidence. Only count a match when a
@@ -66,9 +66,49 @@ countries:
         # as that anchor). Note "nummer"/"number" alone is deliberately absent: it
         # just means "number" and would confirm Swedish "personnummer" as a phone.
         requires_context: true
-        context_keywords: ["tel", "phone", "cell", "mobile", "fisso", "téléphone", "teléfono", "telefon"]
+        context_keywords: ["tel", "phone", "cell", "cellulare", "mobile", "whatsapp", "chiamami", "chiamarmi", "chiamare", "fisso", "recapito telefonico", "téléphone", "portable", "teléfono", "móvil", "telefon", "handy", "telefoon", "telemóvel", "celular"]
         compliance_tags: ["GDPR Art.4(1)"]
+      - category: "IP Address"
+        # Four 0-255 octets (a software version like 2.3.55.987 is not an address), optionally CIDR (/24)
+        # or a range (a.b.c.d-e.f.g.h). Gated by context: a bare dotted quad in code or a changelog is not
+        # evidence, "server 10.0.0.5" is.
+        pattern: '\b(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(?:\.(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}(?:/(?:3[0-2]|[12]?\d))?(?:\s*-\s*(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(?:\.(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3})?\b'
+        base_weight: 8
+        requires_context: true
+        context_keywords: ["ip", "indirizzo", "address", "server", "host", "rete", "network", "gateway", "subnet", "dns", "vpn", "router", "client", "remote", "src", "dst", "ping", "range", "intervallo", "adresse", "dirección", "endereço", "adres"]
+        compliance_tags: ["GDPR Art.4(1) - Online Identifiers"]
+      - category: "URL"
+        # Scheme URLs, www.<domain>, and bare domains only with a closed list of TLDs (a generic
+        # \w+\.\w{2,} would hit "p.iva", "n.ro", "S.r.l."). Trailing sentence punctuation is not part of the URL;
+        # a domain right after '@' belongs to the e-mail address and is skipped in code.
+        pattern: '(?i)(?:https?|ftp)://[^\s<>"'']*[^\s<>"''.,;:!?)\]}»]|www\.[A-Za-z0-9\-._~%]*[A-Za-z0-9]\.[A-Za-z]{2,}(?:/[^\s<>"'']*[^\s<>"''.,;:!?)\]}»])?|\b(?:[A-Za-z0-9](?:[A-Za-z0-9\-]*[A-Za-z0-9])?\.)+(?:it|com|net|org|eu|info|io|dev|app|gov|edu|cloud|online|site|blog)\b(?:/[^\s<>"''.,;:!?)\]}»][^\s<>"'']*)?'
+        base_weight: 4
+        compliance_tags: ["GDPR Art.4(1) - Online Identifiers"]
+      - category: "Monetary Amount"
+        # Currency symbol/code + amount, or amount + currency ("euro" is tried before "EUR" so the match
+        # never stops one letter short).
+        # Prefix form ("€ 1234,56", "EUR 50") or suffix form with a grouped/decimal amount ("1.234,56 euro",
+        # "12,50 €") or a short whole amount ("50 €"). A long bare number followed by a currency word is not
+        # matched: only the structure of the amount makes it one.
+        pattern: '(?i)(?:€|euro|EUR)\s?\d+(?:[.\s]\d{3})*(?:,\d{2})?\b|\b\d{1,3}(?:\.\d{3})+(?:,\d{2})?\s?(?:€|euro\b|EUR\b)|\b\d+,\d{2}\s?(?:€|euro\b|EUR\b)|\b\d{1,3}\s?(?:€|euro\b|EUR\b)'
+        base_weight: 4
+        compliance_tags: ["GDPR Art.4(1) - Financial Data"]
+      - category: "Date of Birth"
+        # A numeric date has no checksum and is everywhere in prose: it only counts next to a birth keyword.
+        pattern: '\b(?:0?[1-9]|[12]\d|3[01])[/.\-](?:0?[1-9]|1[0-2])[/.\-](?:19|20)\d{2}\b'
+        base_weight: 8
+        requires_context: true
+        context_keywords: ["nato", "nata", "nascita", "nasce", "born", "birth", "birthday", "dob", "geboren", "geburtsdatum", "né le", "née", "naissance", "nacido", "nacida", "nacimiento", "nascido", "nascimento", "urodzony", "urodzona", "geboortedatum"]
+        compliance_tags: ["GDPR Art.4(1) - Personal Identifiers"]
+      - category: "Document Protocol Number"
+        # The act code is always written after its abbreviation (R.G., Prot., Rep.); the label makes it
+        # recognisable, the optional "n." between label and number is accepted for every label.
+        pattern: '(?i)\b(?:R\.?G\.?\s*N\.?R\.?|Prot\.?|protocollo|Rep\.?|repertorio)(?:\s*(?:n\.?|num\.?|nro\.?))?\s*\d{1,8}(?:[/\-]\d{2,4})?\b'
+        base_weight: 6
+        compliance_tags: ["GDPR Art.4(1) - Indirect Identifiers"]
       - category: "IBAN"
+        # Compact form here; the printed grouped form ("IT60 X054 2811 ...") is matched in code with the
+        # exact ISO 13616 length of the country (IbanGrouped), then confirmed by the mod-97 validator.
         pattern: '\b[A-Z]{2}\d{2}[A-Z0-9]{4,30}\b'
         base_weight: 22
         validator_name: "IBAN"
@@ -80,7 +120,7 @@ countries:
         # compact. Luhn (validate_luhn) already strips non-digits before
         # checksumming, so this only widens what counts as a candidate match;
         # a failed checksum still rejects it exactly as before.
-        pattern: '\b(?:4(?:[ -]?[0-9]){12}(?:[ -]?[0-9]{3})?|5[1-5](?:[ -]?[0-9]){14}|3[47](?:[ -]?[0-9]){13}|6(?:011|5[0-9]{2})(?:[ -]?[0-9]){12})\b'
+        pattern: '\b(?:4(?:[ .\-]?[0-9]){12}(?:[ .\-]?[0-9]{3})?|5[1-5](?:[ .\-]?[0-9]){14}|3[47](?:[ .\-]?[0-9]){13}|6(?:011|5[0-9]{2})(?:[ .\-]?[0-9]){12})\b'
         base_weight: 25
         validator_name: "LUHN"
         context_keywords: ["card", "credit", "debit", "tarjeta", "carte", "karta", "pago"]
@@ -145,7 +185,7 @@ countries:
         context_keywords: ["cf", "codice fiscale", "tessera", "sostituto imposta"]
         compliance_tags: ["GDPR", "Italian D.Lgs 196/2003"]
       - category: "Italian VAT Number"
-        pattern: '\bIT?\d{11}\b'
+        pattern: '\b(?:IT)?\d{11}\b'
         base_weight: 16
         validator_name: "PIVA_IT"
         requires_context: true

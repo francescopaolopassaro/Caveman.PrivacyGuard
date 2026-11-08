@@ -20,6 +20,9 @@ internal class RulesDocumentJson
     [JsonPropertyName("version")]
     public string Version { get; set; } = "2.0";
 
+    [JsonPropertyName("global_negative_keywords")]
+    public List<string>? GlobalNegativeKeywords { get; set; }
+
     [JsonPropertyName("countries")]
     public List<CountryConfigJson> Countries { get; set; } = new();
 }
@@ -61,4 +64,7 @@ internal class RuleEntryJson
 
     [JsonPropertyName("requires_context")]
     public bool RequiresContext { get; set; }
+
+    [JsonPropertyName("negative_keywords")]
+    public string[]? NegativeKeywords { get; set; }
 }

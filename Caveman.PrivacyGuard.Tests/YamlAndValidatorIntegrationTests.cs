@@ -80,7 +80,7 @@ public class YamlAndValidatorIntegrationTests
         yield return new TestCaseData("IBAN", "DE89370400440532013000", "DE00000000000000000000");
         yield return new TestCaseData("LUHN", "4111111111111111", "4111111111111112");
         yield return new TestCaseData("CF_IT", "RSSMRA80A01H501U", "RSSMRA80A01H5010");
-        yield return new TestCaseData("PIVA_IT", "IT00000010213", "IT00000010210");
+        yield return new TestCaseData("PIVA_IT", "IT00000010215", "IT00000010210");
         yield return new TestCaseData("NIR_FR", "185017500123411", "185017500123400"); 
         yield return new TestCaseData("NIF_ES", "12345678Z", "123456789");
         yield return new TestCaseData("PESEL_PL", "85010112345", "85010112340");
@@ -134,7 +134,7 @@ public class YamlAndValidatorIntegrationTests
         yield return new TestCaseData("IBAN", "DE89370400440532013000", "DE00000000000000000000");
         yield return new TestCaseData("Credit Card", "4532015112830366", "1234567890123456");
         yield return new TestCaseData("Italian Tax Code (CF)", "RSSMRA80A01H501U", "INVALIDCF12345");
-        yield return new TestCaseData("Italian VAT Number", "IT00000010213", "IT00000010210");
+        yield return new TestCaseData("Italian VAT Number", "IT00000010215", "IT00000010210");
         yield return new TestCaseData("German Tax ID (Steuer-Id)", "12345678901", "ABC12345678");
         yield return new TestCaseData("French Social Security (NIR)", "185017500123411", "185017500123400");
         yield return new TestCaseData("French Business ID (SIREN/SIRET)", "123 456 789 000 12", "123 456 789");

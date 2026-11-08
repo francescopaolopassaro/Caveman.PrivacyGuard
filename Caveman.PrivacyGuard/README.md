@@ -5,7 +5,7 @@
 [![NuGet](https://img.shields.io/nuget/v/Caveman.PrivacyGuard.svg)](https://www.nuget.org/packages/Caveman.PrivacyGuard)
 [![Downloads](https://img.shields.io/nuget/dt/Caveman.PrivacyGuard.svg)](https://www.nuget.org/packages/Caveman.PrivacyGuard)
 [![License](https://img.shields.io/github/license/francescopaolopassaro/Caveman.PrivacyGuard.svg)](LICENSE)
-[![.NET 8](https://img.shields.io/badge/.NET-8.0-blueviolet)](https://dotnet.microsoft.com)
+[![.NET 10](https://img.shields.io/badge/.NET-10.0-blueviolet)](https://dotnet.microsoft.com)
 [![.NET Standard 2.0](https://img.shields.io/badge/.NET_Standard-2.0-purple)](https://docs.microsoft.com/en-us/dotnet/standard/net-standard)
 [![GDPR Ready](https://img.shields.io/badge/GDPR-Compliant-green)](https://gdpr.eu)
 
@@ -41,7 +41,7 @@
 | 🧑‍🤝‍🧑 **Multi-Session** | `PrivacySessionManager` isolates sessions per conversation/user/tenant — built for backends running multiple chatbots or an AI provider handling many concurrent conversations |
 | 💬 **AI Transparency Notice** | `AiTransparencyNotice` — a configurable, localized (EN/IT/DE/FR/ES) message informing users they're talking to an AI system and that sensitive data is masked |
 | 🧭 **Chat Intent Router** | `ChatIntentRouter` — routes bot commands (e.g. `/reset`, `/help`) before the text reaches the analyzer |
-| 🚀 **Performance** | `RegexOptions.NonBacktracking` (.NET 8), precompilation, O(1) cache, zero redundant allocations, 3s anti-ReDoS timeout |
+| 🚀 **Performance** | `RegexOptions.NonBacktracking` (.NET 10), precompilation, O(1) cache, zero redundant allocations, 3s anti-ReDoS timeout |
 
 ---
 
@@ -299,6 +299,72 @@ var r = analyzer.Analyze("ssn 123-45-6789 lo trovi nel file");   // r.MlAssisted
 ```
 
 The model is only a *confirmation signal*: it can recover a bare value the context gate rejected (when an overlapping span has the right label), it can **never** override a failed checksum, and without a detector nothing changes.
+
+## Evolutive in 1.5.0: anti-triggers and wider detection
+
+### Negative context - fewer false positives on numbers
+
+A bare number is confirmed by a context keyword ("tel", "cellulare", "iban"...). That is not enough when a *label of
+another kind* is closer to the number: in "numero fattura 3389123456" the word "numero" is a phone keyword, but the
+digits are an invoice number. 1.5.0 adds **anti-triggers**: words such as *invoice, order, article code, protocol,
+serial, SKU, tracking, reference, batch, year* (in 8 languages: Italian, English, French, German, Spanish, Portuguese, Dutch, Polish) mark a nearby number as a non-personal identifier.
+
+How the decision is taken for a bare numeric candidate:
+
+1. The words **before** the number decide first (labels precede values: "codice articolo 123", "telefono 333...").
+   A keyword of the rule wins a tie ("codice fiscale 123": "fiscale" is as close as "codice").
+2. If nothing precedes it, the words after it are compared the same way.
+3. If an anti-trigger is closer than every context keyword, the candidate is rejected.
+
+A trailing remark does not cancel a real label: "numero di telefono 3389123456, anno 2024" is still a phone.
+A `+`-prefixed international number is never vetoed.
+
+| Text | Result |
+| :--- | :--- |
+| `Per problemi chiamami al cellulare 3389123456` | masked (phone) |
+| `Il mio numero di telefono è 3389123456, anno 2024` | masked (phone) |
+| `Il codice articolo del prodotto è 3389123456` | kept |
+| `numero fattura 3389123456` | kept |
+| `Ordine n. 3389123456 numero spedizione` | kept |
+
+```csharp
+var analyzer = new PrivacyAnalyzer();
+analyzer.UseNegativeContext = true;                       // default
+analyzer.AddNegativeKeywords("pratica interna", "badge"); // your own labels
+```
+
+Rules can carry their own words in YAML or JSON, and a document can extend the global set:
+
+```yaml
+global_negative_keywords: ["badge", "ticket"]
+countries:
+  - code: "IT"
+    rules:
+      - category: "Internal Phone"
+        pattern: '\b\d{4}\b'
+        requires_context: true
+        context_keywords: ["interno"]
+        negative_keywords: ["stanza", "piano"]
+```
+
+### New and corrected detections
+
+| Category | What is detected | Notes |
+| :--- | :--- | :--- |
+| IBAN (printed form) | `IT60 X054 2811 1010 0000 0123 456`, with space, dot or dash groups | Consumes exactly the ISO 13616 length of the country, so it never swallows the next word nor stops halfway; mod-97 decides |
+| Credit Card | `4111.1111.1111.1111` and the other separators | Luhn checksum still required |
+| Phone E.164 | Landlines starting with 0 (`010-2471234`) are masked whole | More keywords: cellulare, whatsapp, chiamami, handy, móvil, celular... |
+| IP Address | IPv4, CIDR (`/24`) and ranges (`a.b.c.d-e.f.g.h`) | Octets 0-255, so `2.3.55.987` is a version; needs a network keyword (ip, server, host, rete...) |
+| URL | `https://...`, `www.`, and bare domains with a known TLD | Trailing punctuation is not part of the URL; the domain of an e-mail address is not a second URL |
+| Monetary Amount | `EUR 1234,56`, `1.234,56 euro`, `50 €` | A long bare number followed by "euro" is not an amount |
+| Date of Birth | `06-11-2014` | Only next to a birth keyword (nato, born, geboren, née...) |
+| Document Protocol Number | `Prot. n. 456/2024`, `Rep. 12/2023`, `protocollo 2024/55` | The label is required |
+| Italian VAT Number | `P.IVA 00743110157` with or without `IT` | The checksum weights were wrong and rejected valid numbers; the bare-number pattern could not match |
+
+Use `analyzer.RemoveRule("URL")` (or `RemoveRule("Monetary Amount")`) when your use case does not treat a category
+as sensitive.
+
+Targets: **.NET 10** and netstandard2.0.
 
 ## ⚙️ Advanced Configuration
 

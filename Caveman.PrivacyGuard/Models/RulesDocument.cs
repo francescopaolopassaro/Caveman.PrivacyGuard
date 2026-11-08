@@ -22,6 +22,10 @@ public class RulesDocument
     [YamlMember(Alias = "global_context_keywords")]
     public List<string> GlobalContextKeywords { get; set; } = new();
 
+    /// <summary>Extra words that mark a nearby number as a non-personal identifier (order, invoice, article code...). Added to the built-in multilingual set.</summary>
+    [YamlMember(Alias = "global_negative_keywords")]
+    public List<string> GlobalNegativeKeywords { get; set; } = new();
+
     [YamlMember(Alias = "countries")]
     public List<CountryConfig> Countries { get; set; } = new();
 }
@@ -63,4 +67,8 @@ public class RuleEntry
 
     [YamlMember(Alias = "requires_context")]
     public bool RequiresContext { get; set; }
+
+    /// <summary>Anti-trigger words specific to this rule: when one is closer to the match than every context keyword, the match is a false positive.</summary>
+    [YamlMember(Alias = "negative_keywords")]
+    public string[]? NegativeKeywords { get; set; }
 }

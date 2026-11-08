@@ -1,6 +1,6 @@
 # Release Notes — Caveman.PrivacyGuard
 
-Latest release: **v1.3.0** - streaming & document masking (Synthelion 1.2.5 port)
+Latest release: **v1.5.0** - anti-triggers (fewer false positives), wider detection, .NET 10
 
 > Cumulative summary of all changes from v1.0.0 to v1.3.0. See [Caveman.PrivacyGuard/CHANGELOG.md](Caveman.PrivacyGuard/CHANGELOG.md) for the canonical, version-by-version changelog shipped inside the NuGet package.
 

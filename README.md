@@ -5,7 +5,7 @@
 [![NuGet](https://img.shields.io/nuget/v/Caveman.PrivacyGuard.svg)](https://www.nuget.org/packages/Caveman.PrivacyGuard)
 [![Downloads](https://img.shields.io/nuget/dt/Caveman.PrivacyGuard.svg)](https://www.nuget.org/packages/Caveman.PrivacyGuard)
 [![License](https://img.shields.io/github/license/francescopaolopassaro/Caveman.PrivacyGuard.svg)](Caveman.PrivacyGuard/LICENSE)
-[![.NET 8](https://img.shields.io/badge/.NET-8.0-blueviolet)](https://dotnet.microsoft.com)
+[![.NET 10](https://img.shields.io/badge/.NET-10.0-blueviolet)](https://dotnet.microsoft.com)
 [![.NET Standard 2.0](https://img.shields.io/badge/.NET_Standard-2.0-purple)](https://docs.microsoft.com/en-us/dotnet/standard/net-standard)
 [![GDPR Ready](https://img.shields.io/badge/GDPR-Compliant-green)](https://gdpr.eu)
 
@@ -39,6 +39,7 @@ Full quick start, session-restore walkthrough, multi-session (multi-chatbot) set
 ## Highlights
 
 - 🌍 **32 countries**, each with a real algorithmic validator (checksum), not just regex
+- 🎯 **Fewer false positives (1.5.0)** - anti-triggers: a number next to "invoice", "order" or "article code" is not a phone number; new detections for printed IBAN, IP addresses, URLs, amounts, dates of birth and protocol numbers
 - 🔐 **Compliance flags** for GDPR, EU AI Act, NIS2, PCI-DSS, NIST 800-53
 - 🔄 **Session Restore** — placeholder-based masking so sensitive data never has to leave the client
 - **Streaming & Document Masking (v1.3.0)** - `PrivacyStreamMasker` masks live or chunked streams with a boundary-safe overlap window; `PrivacySession.Summary()` offers a redacted placeholder+category view that never leaks original values; `DocumentMasker` masks plain-text, Markdown and CSV files into a `name.masked.ext` copy (original never overwritten)
@@ -46,7 +47,7 @@ Full quick start, session-restore walkthrough, multi-session (multi-chatbot) set
 - 🛡️ **Prompt Injection Guard** — heuristic screening of untrusted text before it reaches an LLM's context
 - 💬 **AI Transparency Notice** — configurable, localized "you're talking to an AI" disclosure
 - ⚙️ **YAML/JSON-driven rules**, loadable from a file, a string, or a remote URL, with hot-reload
-- 🧵 Thread-safe, zero required external dependencies, targets both `net8.0` and `netstandard2.0`
+- 🧵 Thread-safe, zero required external dependencies, targets both `net10.0` and `netstandard2.0`
 
 See the [CHANGELOG](Caveman.PrivacyGuard/CHANGELOG.md) for full version history.
 
